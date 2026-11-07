@@ -6,7 +6,7 @@ Validate a public Counter-Strike 1.6 ReHLDS server targeting 20–32 slots. GitH
 
 ## Stage 0 — Repository and configuration
 
-- [ ] Shell syntax checks pass for all installers and deploy scripts.
+- [x] Shell syntax checks pass for all installers and deploy scripts.
 - [ ] Example server config uses `sv_lan 0`.
 - [ ] No passwords, Steam credentials, or tunnel tokens are committed.
 
@@ -21,8 +21,8 @@ The initial ReHLDS-only smoke test passed on 2026-11-07. The headless `[S_API FA
 
 ## Stage 2 — ReUnion compatibility
 
-- [ ] Metamod-R loads.
-- [ ] ReUnion appears in `meta list` with status `RUN`.
+- [x] Metamod-R loads.
+- [x] ReUnion appears in `meta list` with status `RUN` in the GitHub Actions smoke test on 2026-11-07.
 - [ ] Protocol 47 client without unique auth ID can connect.
 - [ ] Protocol 48 client without unique auth ID can connect.
 - [ ] Standard Steam client can connect.
@@ -56,5 +56,5 @@ Measure CPU, memory, network throughput, packet loss, server frame stability, an
 - An always-on production host has not been selected or provisioned.
 - The Playit account agent has not been claimed and no public UDP tunnel exists.
 - No external client join has been observed yet.
-- ReUnion has been added to the CI smoke test but must pass before it is considered validated.
+- ReUnion loading is verified locally in CI; real protocol 47/48 client joins still need testing.
 - 20–32-player load testing remains outstanding.

@@ -7,7 +7,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/rehlds-smoke.yml"
-      - "scripts/install-rehlds.sh"
+      - "scripts/install-rehlds.sh"\n      - "scripts/install-reunion.sh"
   workflow_dispatch:
     inputs:
       maxplayers:
@@ -101,6 +101,12 @@ jobs:
           grep -Fx "version=3.15.0.896" "$RUNNER_TEMP/hlds/rehlds-build.txt"
           grep -Fx "signature=VALID" "$RUNNER_TEMP/hlds/rehlds-build.txt"
 
+      - name: Install Metamod-R and ReUnion
+        env:
+          METAMOD_VERSION: 1.3.0.149
+          REUNION_VERSION: 0.2.0.25
+        run: bash scripts/install-reunion.sh "$RUNNER_TEMP/hlds"
+
       - name: Prepare loopback-only test configuration
         run: |
           sed -E 's/^sv_lan[[:space:]]+0$/sv_lan 1/' \
@@ -116,7 +122,7 @@ jobs:
           set +e
           timeout --signal=TERM --kill-after=5s 45s \
             ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
-            +maxplayers "$MAXPLAYERS" +map de_dust2 +version +sv_lan 1 \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +meta list +version +sv_lan 1 \
             > "$LOG_FILE" 2>&1
           STATUS=$?
           set -e
@@ -144,8 +150,10 @@ jobs:
             || { echo "ERROR: The game server did not initialize server logging." >&2; exit 1; }
           grep -Eiq 'World triggered "Round_Start"' "$LOG_FILE" \
             || { echo "ERROR: The game did not reach the first round." >&2; exit 1; }
+          grep -Eiq 'Reunion[[:space:]]+RUN' "$LOG_FILE" \
+            || { echo "ERROR: ReUnion did not load through Metamod-R." >&2; exit 1; }
 
-          echo "ReHLDS verified; the GoldSrc server bound locally, loaded the map, and reached Round_Start."
+          echo "ReHLDS, Metamod-R, and ReUnion verified; the GoldSrc server loaded the map and reached Round_Start."
 
       - name: Upload smoke-test log
         if: always()

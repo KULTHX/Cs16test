@@ -2,7 +2,7 @@ name: ReHLDS local smoke test
 
 on:
   # Run the smoke test automatically when this workflow definition changes.
-  # This is a bounded CI check, not a persistent public game-server service.
+  # This is bounded CI validation, not a persistent public game-server service.
   push:
     branches: [main]
     paths:
@@ -45,6 +45,18 @@ jobs:
           tar -xzf "$RUNNER_TEMP/steamcmd/steamcmd_linux.tar.gz" -C "$RUNNER_TEMP/steamcmd"
           test -x "$RUNNER_TEMP/steamcmd/steamcmd.sh"
 
+      - name: Install Steam client runtime for HLDS
+        run: |
+          STEAMCLIENT="$(find "$RUNNER_TEMP/steamcmd" -type f -name steamclient.so -print -quit)"
+          if [[ -z "$STEAMCLIENT" ]]; then
+            echo "ERROR: SteamCMD archive did not contain linux32/steamclient.so." >&2
+            find "$RUNNER_TEMP/steamcmd" -maxdepth 3 -type f | sort
+            exit 1
+          fi
+          mkdir -p "$HOME/.steam/sdk32"
+          ln -sfn "$STEAMCLIENT" "$HOME/.steam/sdk32/steamclient.so"
+          file "$HOME/.steam/sdk32/steamclient.so"
+
       - name: Install the required CS 1.6 server base
         run: |
           bash scripts/install-base-hlds.sh \
@@ -54,7 +66,10 @@ jobs:
       - name: Replace the engine with signed ReHLDS
         env:
           REHLDS_VERSION: 3.15.0.896
-        run: bash scripts/install-rehlds.sh "$RUNNER_TEMP/hlds"
+        run: |
+          bash scripts/install-rehlds.sh "$RUNNER_TEMP/hlds"
+          grep -Fx "version=3.15.0.896" "$RUNNER_TEMP/hlds/rehlds-build.txt"
+          grep -Fx "signature=VALID" "$RUNNER_TEMP/hlds/rehlds-build.txt"
 
       - name: Prepare loopback-only test configuration
         run: |
@@ -69,7 +84,7 @@ jobs:
           LOG_FILE="$RUNNER_TEMP/rehlds-smoke.log"
           set +e
           timeout --signal=TERM --kill-after=5s 45s \
-            ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
+            ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
             +maxplayers "$MAXPLAYERS" +map de_dust2 +sv_lan 1 \
             > "$LOG_FILE" 2>&1
           STATUS=$?
@@ -81,12 +96,19 @@ jobs:
             exit 1
           fi
 
-          if ! grep -Eiq 'rehlds' "$LOG_FILE"; then
-            echo "ERROR: The startup log did not identify the ReHLDS engine." >&2
+          if grep -Eiq 'FATAL ERROR|Segmentation fault|SteamAPI_Init\(\) failed' "$LOG_FILE"; then
+            echo "ERROR: The server log contains a fatal startup or Steam API error." >&2
             exit 1
           fi
 
-          echo "ReHLDS stayed running for the smoke-test window."
+          grep -Eiq 'Protocol version 48' "$LOG_FILE" \
+            || { echo "ERROR: GoldSrc protocol initialization was not found." >&2; exit 1; }
+          grep -Eiq 'Server IP address' "$LOG_FILE" \
+            || { echo "ERROR: The game server did not report a bound address." >&2; exit 1; }
+          grep -Eiq 'Server logging data to file' "$LOG_FILE" \
+            || { echo "ERROR: The game server did not initialize server logging." >&2; exit 1; }
+
+          echo "ReHLDS binary signature/build verified and server process stayed alive for the smoke-test window."
 
       - name: Upload smoke-test log
         if: always()

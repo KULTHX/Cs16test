@@ -9,15 +9,13 @@ This mode uses only:
 
 It does **not** use Oracle, a VPS, a home computer, or another permanent host.
 
-## Automatic session schedule
+## One-off manual test
 
-The workflow `.github/workflows/cs16-public-session.yml` is scheduled four times per day, at 00:17, 06:17, 12:17, and 18:17 UTC. Each job runs ReHLDS for up to 340 minutes (5 hours 40 minutes), after setup. The Actions job has a 360-minute hard timeout.
-
-The next scheduled run is intended to start another session automatically. Players will disconnect between sessions while a fresh runner installs the files and reconnects the tunnel. This is an experimental rotation, not continuous 24/7 hosting.
+The workflow `.github/workflows/cs16-public-session.yml` is manual only. It has no recurring schedule. One run installs ReHLDS, starts the Playit agent, and holds the test session for up to 60 minutes. The whole GitHub Actions job has a 90-minute timeout. It ends once; no restart or follow-up job is scheduled.
 
 ### Important GitHub limits
 
-- GitHub-hosted jobs have a maximum execution time of six hours.
+- GitHub-hosted jobs have a maximum execution time of six hours, but this one-off test is capped at 90 minutes.
 - Scheduled events may be delayed during high load, and some queued events may be dropped.
 - Scheduled workflows in public repositories are automatically disabled after 60 days without repository activity.
 - The schedule is not an uptime guarantee. A missed schedule means the server remains offline until the next successful run.

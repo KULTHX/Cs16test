@@ -1,4 +1,4 @@
-name: Validate CS 1.6 server project
+name: Validate CS 1.6 ReHLDS project
 
 on:
   push:
@@ -20,7 +20,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate shell syntax
-        run: bash -n scripts/validate-config.sh
+        run: |
+          bash -n scripts/validate-config.sh
+          bash -n scripts/install-base-hlds.sh
+          bash -n scripts/install-rehlds.sh
 
       - name: Validate example server configuration
         run: bash scripts/validate-config.sh config/server.cfg.example

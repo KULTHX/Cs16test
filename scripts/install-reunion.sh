@@ -53,8 +53,11 @@ mkdir -p "$GAME_DIR/addons/metamod" "$GAME_DIR/addons/reunion"
 install -m 0755 "$METAMOD_BIN" "$GAME_DIR/addons/metamod/metamod_i386.so"
 install -m 0755 "$REUNION_BIN" "$GAME_DIR/addons/reunion/reunion_mm_i386.so"
 
-if [[ ! -f "$GAME_DIR/addons/reunion/reunion.cfg" ]]; then
-  install -m 0644 "$REUNION_CFG" "$GAME_DIR/addons/reunion/reunion.cfg"
+# ReUnion 0.2.0.25 reads reunion.cfg from the game directory or server root.
+# Keep the runtime config at cstrike/reunion.cfg, not inside addons/reunion/.
+REUNION_CONFIG="$GAME_DIR/reunion.cfg"
+if [[ ! -f "$REUNION_CONFIG" ]]; then
+  install -m 0644 "$REUNION_CFG" "$REUNION_CONFIG"
 fi
 
 echo "[4/5] Configuring Metamod-R and ReUnion..."
@@ -80,7 +83,7 @@ if ! grep -Eq '^[[:space:]]*gamedll_linux[[:space:]]+"addons/metamod/metamod_i38
   echo "Original liblist backup: $BACKUP"
 fi
 
-REUNION_CONFIG="$GAME_DIR/addons/reunion/reunion.cfg"
+REUNION_CONFIG="$GAME_DIR/reunion.cfg"
 if ! grep -Eq '^[[:space:]]*SteamIdHashSalt[[:space:]]*=[[:space:]]*[^[:space:]]+' "$REUNION_CONFIG"; then
   SALT="$(openssl rand -hex 32)"
   sed -i -E "s/^[[:space:]]*SteamIdHashSalt[[:space:]]*=.*/SteamIdHashSalt = $SALT/" "$REUNION_CONFIG"

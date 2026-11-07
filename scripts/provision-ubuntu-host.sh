@@ -83,6 +83,17 @@ if [[ ! -f "$SERVER_DIR/cstrike/server.cfg" ]]; then
   install -m 0640 "$REPO_ROOT/config/server.cfg.example" "$SERVER_DIR/cstrike/server.cfg"
 fi
 
+if ! grep -Eq '^[[:space:]]*rcon_password[[:space:]]+"[^"]+"' "$SERVER_DIR/cstrike/server.cfg"; then
+  RCON_PASSWORD="$(openssl rand -hex 24)"
+  sed -i -E '/^[[:space:]]*rcon_password[[:space:]]+/d' "$SERVER_DIR/cstrike/server.cfg"
+  printf '\nrcon_password "%s"\n' "$RCON_PASSWORD" >> "$SERVER_DIR/cstrike/server.cfg"
+  unset RCON_PASSWORD
+  chmod 0640 "$SERVER_DIR/cstrike/server.cfg"
+fi
+
+echo "RCON password is stored only on the host in $SERVER_DIR/cstrike/server.cfg."
+echo "Retrieve it locally with: sudo grep '^rcon_password' $SERVER_DIR/cstrike/server.cfg"
+
 echo "[7/8] Installing systemd launcher and service..."
 install -m 0755 "$REPO_ROOT/deploy/start-cs16-rehlds.sh" /usr/local/bin/cs16-rehlds-start
 install -m 0644 "$REPO_ROOT/deploy/cs16-rehlds.service" /etc/systemd/system/cs16-rehlds.service

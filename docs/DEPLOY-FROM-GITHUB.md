@@ -46,7 +46,9 @@ Once all secrets exist and the host is ready:
 2. Select **Deploy ReHLDS to persistent Linux host**.
 3. Choose **Run workflow**.
 
-The workflow uses strict SSH host-key checking and will fail before making changes if required secrets are missing or host verification fails.
+The workflow only deploys when manually triggered against the `main` branch. It uses strict SSH host-key checking and fails before making changes if required secrets are missing or host verification fails.
+
+Use a dedicated deployment key for CI. The current workflow expects a key without an interactive passphrase; store it only as the encrypted `CS16_SSH_PRIVATE_KEY` Actions secret, restrict the matching remote account, and never paste the private key into chat. The SSH host-key line must be verified independently before saving it as `CS16_SSH_KNOWN_HOSTS`.
 
 ## After deployment
 

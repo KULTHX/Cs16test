@@ -21,15 +21,15 @@ This proves the engine and plugin stack can start on a GitHub-hosted Linux runne
 - **Playit:** forwards public UDP traffic to the runner's local `127.0.0.1:27015`.
 - **Vercel:** serves the public status page only. It does not run the game server.
 
-## One-off test
+## Automatic six-hour sessions
 
-The workflow `.github/workflows/cs16-public-session.yml` is scheduled four times per day:
+The workflow `.github/workflows/cs16-public-session.yml` starts a fresh session automatically four times per day:
 - 00:17 UTC
 - 06:17 UTC
 - 12:17 UTC
 - 18:17 UTC
 
-Each run starts ReHLDS for up to **340 minutes (5 hours 40 minutes)** after setup. The GitHub-hosted job has a six-hour hard limit. The next scheduled run starts a fresh runner and reconnects the Playit agent.
+Each run starts ReHLDS for up to **340 minutes (5 hours 40 minutes)** after setup. The GitHub-hosted job has a six-hour hard limit. The next scheduled run starts a fresh runner and reconnects the Playit agent. The first scheduled slot is 00:17 UTC, then 06:17, 12:17, and 18:17 UTC each day.
 
 This is an experimental six-hour rotation, not guaranteed 24/7 uptime. Players disconnect when a session ends; the next runner needs time to install files and reconnect. GitHub documents that scheduled runs can be delayed or dropped during high load. The workflow deliberately stays within GitHub's execution limit and does not chain jobs to evade it.
 
@@ -55,7 +55,7 @@ Playit's official agent Docker instructions: https://github.com/playit-cloud/pla
 
 ## Start and monitor
 
-After adding `PLAYIT_SECRET_KEY`, run **Actions → CS 1.6 one-off Playit test (GitHub-hosted) → Run workflow** and choose 20 slots. This is a single test, not a recurring service.
+After adding `PLAYIT_SECRET_KEY` and configuring the UDP tunnel once, sessions start from the schedule automatically. A maintainer can also use **Actions → CS 1.6 public session (GitHub-hosted) → Run workflow** for an additional manual session.
 
 A successful run must show:
 - ReHLDS version and GoldSrc protocol startup.

@@ -9,16 +9,16 @@ This mode uses only:
 
 It does **not** use Oracle, a VPS, a home computer, or another permanent host.
 
-## One-off manual test
+## Automatic six-hour session rotation
 
-The workflow `.github/workflows/cs16-public-session.yml` is manual only. It has no recurring schedule. One run installs ReHLDS, starts the Playit agent, and holds the test session for up to 60 minutes. The whole GitHub Actions job has a 90-minute timeout. It ends once; no restart or follow-up job is scheduled.
+The workflow `.github/workflows/cs16-public-session.yml` is scheduled four times per day at 00:17, 06:17, 12:17, and 18:17 UTC. Each run installs ReHLDS, starts the Playit agent, and holds the game session for up to 340 minutes (5 hours 40 minutes). The whole GitHub Actions job has a 360-minute timeout to leave room for setup. The next scheduled run starts on a fresh runner and reattaches the Playit agent.
 
 ### Important GitHub limits
 
-- GitHub-hosted jobs have a maximum execution time of six hours, but this one-off test is capped at 90 minutes.
+- GitHub-hosted jobs have a maximum execution time of six hours. This workflow caps the session process at 340 minutes and the complete job at 360 minutes.
 - Scheduled events may be delayed during high load, and some queued events may be dropped.
 - Scheduled workflows in public repositories are automatically disabled after 60 days without repository activity.
-- The schedule is not an uptime guarantee. A missed schedule means the server remains offline until the next successful run.
+- The schedule is not an uptime guarantee. There can be a gap while a fresh runner installs the game files, and a missed schedule means the server remains offline until the next successful run. It does not immediately restart a failed run, and it does not chain workflows to evade GitHub's six-hour limit.
 
 Official documentation:
 - Job execution limits: https://docs.github.com/en/actions/reference/limits
@@ -43,7 +43,7 @@ Official Playit Docker instructions: https://github.com/playit-cloud/playit-agen
 
 ## Start / monitor
 
-The schedule starts sessions automatically. For the first test, the workflow can also be launched from the Actions tab using **CS 1.6 public session (GitHub-hosted)**. Choose 20 slots.
+After the one-time Playit secret and UDP tunnel setup, the schedule starts sessions automatically. A maintainer may also launch an extra session from the Actions tab using **CS 1.6 public session (GitHub-hosted)**. Choose 20 slots.
 
 Follow the workflow logs. The run must show:
 - ReHLDS 3.15.0.896.

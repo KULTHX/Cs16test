@@ -1,7 +1,13 @@
 name: CS 1.6 one-off Playit test (GitHub-hosted)
 
 on:
-  # One-off manual test only. No recurring schedule.
+  # A single marker-file push starts the one-off test automatically.
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/one-off-test.trigger"
+  # Keep manual dispatch available for maintainers; there is no recurring schedule.
   workflow_dispatch:
     inputs:
       maxplayers:

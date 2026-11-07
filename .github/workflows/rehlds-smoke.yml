@@ -34,7 +34,7 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y curl ca-certificates gpg unzip lib32gcc-s1 lib32stdc++6 lib32z1
+          sudo apt-get install -y curl ca-certificates gpg unzip file lib32gcc-s1 lib32stdc++6 lib32z1
 
       - name: Download SteamCMD
         run: |
@@ -51,22 +51,46 @@ jobs:
             "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
             "$RUNNER_TEMP/hlds"
 
-      - name: Link SteamCMD Linux runtime for HLDS
+      - name: Install official Steamworks server runtime (App 1007)
         run: |
-          # The Steam client runtime may appear only after SteamCMD has run.
-          STEAMCLIENT="$(find "$RUNNER_TEMP/steamcmd" "$RUNNER_TEMP/hlds" "$HOME/.steam" \
-            -type f -name steamclient.so -print -quit 2>/dev/null || true)"
+          mkdir -p "$RUNNER_TEMP/steamworks-redist"
+          "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
+            +force_install_dir "$RUNNER_TEMP/steamworks-redist" \
+            +login anonymous \
+            +app_update 1007 validate \
+            +quit
+
+      - name: Link the 32-bit Steam client runtime for HLDS
+        run: |
+          mapfile -t CANDIDATES < <(find "$RUNNER_TEMP/steamworks-redist" "$RUNNER_TEMP/steamcmd" "$RUNNER_TEMP/hlds" "$HOME/.steam" \
+            -type f -name steamclient.so -print 2>/dev/null || true)
+
+          STEAMCLIENT=""
+          for candidate in "${CANDIDATES[@]}"; do
+            DESCRIPTION="$(file -b "$candidate" || true)"
+            if [[ "$DESCRIPTION" == *"ELF 32-bit"* ]]; then
+              STEAMCLIENT="$candidate"
+              break
+            fi
+          done
+
           if [[ -z "$STEAMCLIENT" ]]; then
-            echo "ERROR: steamclient.so was not produced by SteamCMD / app 90." >&2
-            find "$RUNNER_TEMP/steamcmd" "$RUNNER_TEMP/hlds" "$HOME/.steam" \
-              -maxdepth 5 -type f 2>/dev/null | sort | tail -100
+            echo "ERROR: No 32-bit steamclient.so was found in Steamworks App 1007 or SteamCMD." >&2
+            printf '%s\n' "${CANDIDATES[@]}"
             exit 1
           fi
+
           STEAMCLIENT_DIR="$(dirname "$STEAMCLIENT")"
-          mkdir -p "$HOME/.steam"
-          ln -sfn "$STEAMCLIENT_DIR" "$HOME/.steam/sdk32"
-          test -f "$HOME/.steam/sdk32/steamclient.so"
-          echo "Using Steam client runtime from: $STEAMCLIENT_DIR"
+          export LD_LIBRARY_PATH="$STEAMCLIENT_DIR:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
+          mkdir -p "$HOME/.steam/sdk32"
+          ln -sfn "$STEAMCLIENT" "$HOME/.steam/sdk32/steamclient.so"
+          file "$HOME/.steam/sdk32/steamclient.so"
+          ldd "$HOME/.steam/sdk32/steamclient.so" | tee "$RUNNER_TEMP/steamclient-dependencies.txt"
+          if grep -q "not found" "$RUNNER_TEMP/steamclient-dependencies.txt"; then
+            echo "ERROR: One or more 32-bit Steam client dependencies are missing." >&2
+            exit 1
+          fi
+          echo "Linked verified 32-bit Steam client runtime from: $STEAMCLIENT"
 
       - name: Replace the engine with signed ReHLDS
         env:
@@ -87,10 +111,11 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/hlds"
           LOG_FILE="$RUNNER_TEMP/rehlds-smoke.log"
+          export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
           set +e
           timeout --signal=TERM --kill-after=5s 45s \
             ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
-            +maxplayers "$MAXPLAYERS" +map de_dust2 +sv_lan 1 \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +version +sv_lan 1 \
             > "$LOG_FILE" 2>&1
           STATUS=$?
           set -e
@@ -108,12 +133,14 @@ jobs:
 
           grep -Eiq 'Protocol version 48' "$LOG_FILE" \
             || { echo "ERROR: GoldSrc protocol initialization was not found." >&2; exit 1; }
+          grep -Eiq 'ReHLDS version:' "$LOG_FILE" \
+            || { echo "ERROR: The running engine did not report its ReHLDS version." >&2; exit 1; }
           grep -Eiq 'Server IP address' "$LOG_FILE" \
             || { echo "ERROR: The game server did not report a bound address." >&2; exit 1; }
           grep -Eiq 'Server logging data to file' "$LOG_FILE" \
             || { echo "ERROR: The game server did not initialize server logging." >&2; exit 1; }
 
-          echo "ReHLDS binary signature/build verified and server process stayed alive for the smoke-test window."
+          echo "ReHLDS verified and the local server remained alive for the smoke-test window."
 
       - name: Upload smoke-test log
         if: always()

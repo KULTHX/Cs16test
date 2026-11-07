@@ -24,7 +24,7 @@ HLDS_DIR="$(cd "$HLDS_DIR" && pwd)"
 
 [[ "$REHLDS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "Invalid ReHLDS version: $REHLDS_VERSION"
 
-for cmd in curl gpg unzip install; do
+for cmd in curl gpg unzip install sha256sum awk; do
   command -v "$cmd" >/dev/null 2>&1 || fail "Required command is missing: $cmd"
 done
 
@@ -45,7 +45,10 @@ curl --fail --location --retry 3 --retry-delay 2 \
 echo "[2/4] Verifying the official ReHLDS release signature..."
 gpg --batch --keyserver hkps://keyserver.ubuntu.com \
   --recv-keys "$GPG_FINGERPRINT"
-gpg --batch --verify "$WORK_DIR/${ARCHIVE}.asc" "$WORK_DIR/$ARCHIVE"
+gpg --batch --status-fd 1 --verify "$WORK_DIR/${ARCHIVE}.asc" "$WORK_DIR/$ARCHIVE" \
+  | tee "$WORK_DIR/signature-status.txt"
+grep -q "\[GNUPG:\] VALIDSIG ${GPG_FINGERPRINT}" "$WORK_DIR/signature-status.txt" \
+  || fail "The archive signature is not valid for the pinned ReHLDS signing fingerprint."
 
 echo "[3/4] Locating the Linux 32-bit ReHLDS engine..."
 mapfile -t ENGINE_PATHS < <(unzip -Z1 "$WORK_DIR/$ARCHIVE" | grep -E '(^|/)engine_i486\.so$' || true)
@@ -72,6 +75,15 @@ BACKUP="$HLDS_DIR/engine_i486.so.stock.$(date -u +%Y%m%dT%H%M%SZ)"
 cp -p "$HLDS_DIR/engine_i486.so" "$BACKUP"
 install -m 0755 "$WORK_DIR/engine_i486.so" "$HLDS_DIR/engine_i486.so"
 
+ARCHIVE_SHA256="$(sha256sum "$WORK_DIR/$ARCHIVE" | awk '{print $1}')"
+cat > "$HLDS_DIR/rehlds-build.txt" <<EOF
+version=$REHLDS_VERSION
+archive=$ARCHIVE
+sha256=$ARCHIVE_SHA256
+signature=VALID
+signing_key_fingerprint=$GPG_FINGERPRINT
+EOF
+
 echo "ReHLDS ${REHLDS_VERSION} installed."
 echo "Original engine backup: $BACKUP"
-echo "Confirm the ReHLDS version in the server startup log during the smoke test."
+echo "Verified build metadata: $HLDS_DIR/rehlds-build.txt"

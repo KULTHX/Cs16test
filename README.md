@@ -6,7 +6,7 @@ A reproducible Counter-Strike 1.6 GoldSrc server project targeting 20–32 playe
 
 **Milestone 3 passed:** the ReHLDS-only local smoke test ran on GitHub Actions on 2026-11-07. It installed and verified ReHLDS 3.15.0.896, initialized GoldSrc protocol 48, loaded the map, and reached `World triggered "Round_Start"`.
 
-**Milestone 4 added:** the repository now includes a persistent-host deployment package, a systemd service with automatic restart, Metamod-R/ReUnion compatibility for protocol 47/48 clients, and a Playit Linux-agent installer. The extended ReUnion smoke test is being validated separately. No public endpoint or 20–32 player capacity has been claimed yet.
+**Milestone 4 passed locally:** on 2026-11-07, the extended GitHub Actions smoke test loaded ReHLDS 3.15.0.896-dev, Metamod-R 1.3.0.149, and ReUnion 0.2.0.25. The `meta list` output showed `Reunion RUN`, and the server reached `Round_Start`. The repository also includes a persistent-host deployment package, a systemd service with automatic restart, and a Playit Linux-agent installer. No public endpoint or 20–32 player capacity has been claimed yet.
 
 GitHub Actions remains a temporary CI environment, not a persistent public game host. The production game process must run on an always-on Linux host that permits dedicated game servers.
 

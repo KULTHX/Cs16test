@@ -1,0 +1,20 @@
+# Local HLDS / SteamCMD installations
+steamcmd/
+hlds/
+cstrike/
+valve/
+platform/
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+*.token
+*.pem
+*.key
+
+# Logs and runtime files
+*.log
+*.dmp
+*.core
+*.pid

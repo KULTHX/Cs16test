@@ -7,17 +7,29 @@ for cmd in curl gpg apt-get install; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Missing command: $cmd" >&2; exit 1; }
 done
 
-install -d -m 0755 /etc/apt/keyrings
-curl --fail --location --retry 3 https://playit-cloud.github.io/ppa/key.gpg \
-  | gpg --dearmor --yes -o /etc/apt/keyrings/playit.gpg
-chmod 0644 /etc/apt/keyrings/playit.gpg
+echo "[1/4] Installing the official Playit package signing key..."
+install -d -m 0755 /usr/share/keyrings
+curl --fail --silent --show-error --location --retry 3 \
+  https://packages.playit.gg/keys/playit.gpg \
+  | gpg --dearmor --yes -o /usr/share/keyrings/playit.gpg
+chmod 0644 /usr/share/keyrings/playit.gpg
 
-cat > /etc/apt/sources.list.d/playit-cloud.list <<'EOF'
-deb [signed-by=/etc/apt/keyrings/playit.gpg] https://playit-cloud.github.io/ppa/data ./
-EOF
+echo "[2/4] Adding the official Playit Debian/Ubuntu package source..."
+curl --fail --silent --show-error --location --retry 3 \
+  -o /etc/apt/sources.list.d/playit.list \
+  https://packages.playit.gg/repo-files/playit-debian.list
 
+echo "[3/4] Installing Playit..."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y playit
+
+echo "[4/4] Checking the systemd unit..."
+if ! systemctl list-unit-files playit.service --no-legend | grep -q '^playit\.service'; then
+  echo "WARNING: The package did not install playit.service on this distribution." >&2
+  echo "Consult https://playit.gg/support/host-247-with-playit/ for the current service method."
+else
+  echo "Playit systemd unit is installed."
+fi
 
 cat <<'EOF'
 Playit agent installed.
@@ -25,10 +37,16 @@ Playit agent installed.
 One-time account claim:
   sudo playit setup
 
-After the agent is claimed and the UDP tunnel is created in the Playit dashboard:
+Then create a UDP tunnel in the Playit dashboard with:
+  Local/origin address: 127.0.0.1
+  Local/origin port:    27015
+  Tunnel type:          UDP
+
+Start the agent at boot:
   sudo systemctl enable --now playit
+
+Check agent status:
   sudo systemctl status playit
 
-Create a UDP tunnel with local/origin address 127.0.0.1 and local port 27015.
-Do not put the Playit agent key or account token in this repository.
+Keep the Playit account/agent credentials on the host; never commit them to Git.
 EOF

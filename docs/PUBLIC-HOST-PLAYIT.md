@@ -29,6 +29,8 @@ The server starts with 20 slots and `de_dust2`. The service uses systemd `Restar
 
 ## 2. Install and claim Playit
 
+The repository's installer uses Playit's current official Debian/Ubuntu package repository (`packages.playit.gg`), not the legacy deprecated PPA. Official installation commands: https://packages.playit.gg/.
+
 Install the official Playit Linux agent package:
 
 ```bash
@@ -62,6 +64,8 @@ sudo systemctl status playit
 Playit’s official Linux instructions document installing the package and using systemd to run it persistently. Its public product page lists UDP tunneling as an available protocol for custom services. Check your dashboard for current plan details because provider limits can change.
 
 ## 4. Verify from outside the host
+
+The public status page is [cs16-community-status.vercel.app](https://cs16-community-status.vercel.app). It is a static status page at this stage; it does not yet query the game server directly. We will change its status data only after the host and external UDP connection are verified.
 
 First check local service health:
 

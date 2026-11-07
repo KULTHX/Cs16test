@@ -1,75 +1,99 @@
 # CS 1.6 ReHLDS Server Lab
 
-A reproducible preparation and test project for a public Counter-Strike 1.6 GoldSrc server targeting 20–32 player slots.
+A reproducible Counter-Strike 1.6 GoldSrc server project targeting 20–32 player slots.
 
 ## Project status
 
-**Milestone 3: ReHLDS local smoke test passed on GitHub Actions (2026-11-07).** The 20-slot test installed ReHLDS 3.15.0.896, verified its release signature, started GoldSrc protocol 48, loaded the map, and reached `World triggered "Round_Start"`. This verifies local process startup only; public UDP access, external client joins, 32-player capacity, and continuous hosting remain untested.
+**Milestone 3 passed:** the ReHLDS-only local smoke test ran on GitHub Actions on 2026-11-07. It installed and verified ReHLDS 3.15.0.896, initialized GoldSrc protocol 48, loaded the map, and reached `World triggered "Round_Start"`.
 
-The selected engine is **ReHLDS 3.15.0.896** (pinned). The repository contains installation scripts and configuration examples; it does not contain copyrighted game assets, server binaries, credentials, or a permanent game host.
+**Milestone 4 added:** the repository now includes a persistent-host deployment package, a systemd service with automatic restart, Metamod-R/ReUnion compatibility for protocol 47/48 clients, and a Playit Linux-agent installer. The extended ReUnion smoke test is being validated separately. No public endpoint or 20–32 player capacity has been claimed yet.
+
+GitHub Actions remains a temporary CI environment, not a persistent public game host. The production game process must run on an always-on Linux host that permits dedicated game servers.
 
 ## Stack
 
 - Game: Counter-Strike 1.6 / GoldSrc.
-- Engine: ReHLDS (replaces the original HLDS engine binary).
-- Base game/server files: installed with SteamCMD app 90 on the `steam_legacy` branch, as required by ReHLDS.
-- Target slots: 20–32; 32 is a test target, not a performance guarantee.
+- Engine: ReHLDS 3.15.0.896 (replaces the original HLDS engine binary).
+- Compatibility layer: Metamod-R 1.3.0.149 + ReUnion 0.2.0.25.
+- Base server/game files: SteamCMD app 90, `steam_legacy` branch, as required by ReHLDS.
+- Steamworks runtime: app 1007, for the 32-bit Steam client library used by the dedicated server.
 - Game port: UDP 27015.
 - Initial map: `de_dust2`.
-- Initial configuration: vanilla CS 1.6, no extra plugins in the first milestone.
+- Initial production target: 20 slots. Increase only after player/network tests; 32 is the configured ceiling, not a performance guarantee.
 
-**Important:** SteamCMD is used only to obtain the required base server/game files. The running engine is replaced with ReHLDS. ReHLDS does not remove the requirement for those base files.
+ReHLDS replaces the engine but does not replace the Counter-Strike game files. SteamCMD is used to obtain the required base files.
 
 ## Repository layout
 
 ```text
 config/
   server.cfg.example
+deploy/
+  cs16-rehlds.service
+  cs16-rehlds.env.example
+  start-cs16-rehlds.sh
 docs/
   REHLDS-SETUP.md
   TEST-PLAN.md
+  PUBLIC-HOST-PLAYIT.md
 scripts/
   install-base-hlds.sh
   install-rehlds.sh
+  install-reunion.sh
+  install-playit-agent.sh
+  provision-ubuntu-host.sh
   validate-config.sh
 .github/workflows/
   validate.yml
   rehlds-smoke.yml
 ```
 
-## Installation outline
+## Deploy on an always-on Ubuntu/Debian host
 
-On a Linux host where running a game server is permitted:
+Clone this repository on a Linux x86_64 machine that you control and where hosting a game server is permitted, then run:
 
-1. Install SteamCMD and its 32-bit runtime dependencies.
-2. Install the base CS 1.6 dedicated-server files:
-   `bash scripts/install-base-hlds.sh /path/to/steamcmd.sh /opt/cs16`
-3. Replace the engine with the pinned, signature-verified ReHLDS release:
-   `REHLDS_VERSION=3.15.0.896 bash scripts/install-rehlds.sh /opt/cs16`
-4. Copy `config/server.cfg.example` to `/opt/cs16/cstrike/server.cfg`.
-5. Configure a unique RCON password locally; never commit it.
-6. Start with `./hlds_run -game cstrike -console -port 27015 +maxplayers 20 +map de_dust2`.
-7. Test local startup, then UDP reachability from an external network.
-8. Only after that, evaluate a public UDP tunnel such as Playit.
+```bash
+sudo bash scripts/provision-ubuntu-host.sh
+```
 
-See [docs/REHLDS-SETUP.md](docs/REHLDS-SETUP.md) for details.
+The provisioner installs SteamCMD, the CS 1.6 base files, Steamworks runtime, ReHLDS, Metamod-R, and ReUnion. It generates a private RCON password on the host if one is not already configured, then installs and starts the `cs16-rehlds` systemd service.
+
+The systemd unit uses `Restart=always`, so it brings the game server process back when it exits unexpectedly. It also starts on host boot.
+
+## Expose the server with Playit UDP
+
+Install the official Linux agent:
+
+```bash
+sudo bash scripts/install-playit-agent.sh
+sudo playit setup
+sudo systemctl enable --now playit
+```
+
+The `playit setup` command is the one-time account claim. In the Playit dashboard, create a **UDP** tunnel whose local/origin endpoint is `127.0.0.1:27015`. Share the public address and port Playit assigns. The players do not install Playit.
+
+See [docs/PUBLIC-HOST-PLAYIT.md](docs/PUBLIC-HOST-PLAYIT.md) before publishing the address.
 
 ## Modified-client compatibility
 
-ReHLDS is an engine replacement; it does not automatically make every modified client or every authentication scheme compatible. The ReHLDS ecosystem documents ReUnion as a separate MetaMod plugin for certain non-Steam GoldSrc client protocols. It is not installed in this milestone. We will first test the exact client builds and protocols, then decide whether a separate compatibility layer is appropriate.
+ReUnion is configured to allow protocol 47 and 48 GoldSrc clients that do not provide a unique authorization ID. These fallback IDs are IP-derived and salted. Players sharing one public IP (for example, behind the same NAT) can therefore share an identity; the configuration disables ReUnion's same-ID connection limit to avoid blocking a group behind one address. This has trade-offs for bans and identity tracking. Do not change the generated `SteamIdHashSalt` after opening the server unless you intend to change generated player IDs.
 
-## GitHub Actions role
+## Operations
 
-- `validate.yml` checks configuration and shell syntax.
-- `rehlds-smoke.yml` is a **manual, short, loopback-only** install/start test.
-- GitHub-hosted runners are temporary CI machines, not persistent public game-server hosts. The smoke-test workflow terminates the server automatically and does not attempt to evade runner limits.
+```bash
+sudo systemctl status cs16-rehlds
+sudo journalctl -u cs16-rehlds -f
+sudo systemctl restart cs16-rehlds
+sudo systemctl status playit
+```
 
-A real public server needs a host that permits a long-running ReHLDS process and inbound UDP traffic.
+Set `CS16_SLOTS=20`, `CS16_PORT=27015`, and `CS16_MAP=de_dust2` in `/etc/default/cs16-rehlds`. The launcher accepts a maximum of 32 slots. Do not increase the slot count until the server has been tested with real clients.
 
-## Security rules
+## Security and boundaries
 
-- Never commit RCON passwords, Steam credentials, tunnel tokens, private keys, or other secrets.
-- Store any required CI secrets in GitHub Actions Secrets.
-- Do not expose RCON publicly without strong access controls.
-- Use server files and game content you are authorized to use.
-- Do not claim public reachability until an external query and a real client connection succeed.
+- Never commit RCON passwords, Steam credentials, Playit agent keys, private keys, or other secrets.
+- The provisioner generates a private RCON password locally. Retrieve it on the host only when needed.
+- Do not expose RCON without a strong password.
+- Use game/server files you are authorized to use.
+- Vercel can host a web status/control panel later; it cannot host the persistent UDP game process.
+- GitHub Actions validates and tests builds only. It is not used to chain temporary runners into a permanent game host.

@@ -1,0 +1,95 @@
+name: Deploy ReHLDS to persistent Linux host
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cs16-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Sync and provision ReHLDS host
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
+      CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
+      CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT }}
+      CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
+      CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Validate required deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in CS16_SSH_HOST CS16_SSH_USER CS16_SSH_PRIVATE_KEY CS16_SSH_KNOWN_HOSTS; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required GitHub Actions secret: $name" >&2
+              exit 1
+            fi
+          done
+          if [[ ! "$CS16_SSH_PORT" =~ ^[0-9]+$ ]]; then
+            echo "CS16_SSH_PORT must be a numeric port (recommended default: 22)." >&2
+            exit 1
+          fi
+
+      - name: Configure SSH with pinned host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$CS16_SSH_PRIVATE_KEY" > "$HOME/.ssh/cs16_deploy"
+          printf '%s\n' "$CS16_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/cs16_deploy" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/cs16_deploy" >/dev/null
+
+      - name: Create remote deployment directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cs16_deploy" \
+            -p "$CS16_SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$CS16_SSH_USER@$CS16_SSH_HOST" \
+            'mkdir -p "$HOME/cs16-deploy"'
+
+      - name: Sync source files to host
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='cstrike/' \
+            --exclude='hlds/' \
+            --exclude='steamcmd/' \
+            -e "ssh -i $HOME/.ssh/cs16_deploy -p $CS16_SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
+            ./ "$CS16_SSH_USER@$CS16_SSH_HOST:cs16-deploy/"
+
+      - name: Provision host and restart game service
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cs16_deploy" \
+            -p "$CS16_SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$CS16_SSH_USER@$CS16_SSH_HOST" \
+            'cd "$HOME/cs16-deploy" && sudo -n bash scripts/provision-ubuntu-host.sh && sudo -n systemctl restart cs16-rehlds && sudo -n systemctl is-active --quiet cs16-rehlds'
+
+      - name: Report deployment target
+        run: |
+          echo "Deployment command completed. Verify cs16-rehlds and playit service status on the host."
+          echo "The game server is supervised by systemd independently from this GitHub Actions job."

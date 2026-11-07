@@ -84,9 +84,23 @@ if ! grep -Eq '^[[:space:]]*gamedll_linux[[:space:]]+"addons/metamod/metamod_i38
 fi
 
 REUNION_CONFIG="$GAME_DIR/reunion.cfg"
-if ! grep -Eq '^[[:space:]]*SteamIdHashSalt[[:space:]]*=[[:space:]]*[^[:space:]]+' "$REUNION_CONFIG"; then
-  SALT="$(openssl rand -hex 32)"
-  sed -i -E "s/^[[:space:]]*SteamIdHashSalt[[:space:]]*=.*/SteamIdHashSalt = $SALT/" "$REUNION_CONFIG"
+if [[ -n "${REUNION_HASH_SALT:-}" ]]; then
+  [[ "$REUNION_HASH_SALT" =~ ^[A-Za-z0-9_-]{32,}$ ]] \
+    || fail "REUNION_HASH_SALT must contain at least 32 letters, digits, underscores, or hyphens."
+  if grep -Eq '^[[:space:]]*SteamIdHashSalt[[:space:]]*=' "$REUNION_CONFIG"; then
+    sed -i -E "s/^[[:space:]]*SteamIdHashSalt[[:space:]]*=.*/SteamIdHashSalt = $REUNION_HASH_SALT/" "$REUNION_CONFIG"
+  else
+    printf '\nSteamIdHashSalt = %s\n' "$REUNION_HASH_SALT" >> "$REUNION_CONFIG"
+  fi
+else
+  if ! grep -Eq '^[[:space:]]*SteamIdHashSalt[[:space:]]*=[[:space:]]*[^[:space:]]+' "$REUNION_CONFIG"; then
+    SALT="$(openssl rand -hex 32)"
+    if grep -Eq '^[[:space:]]*SteamIdHashSalt[[:space:]]*=' "$REUNION_CONFIG"; then
+      sed -i -E "s/^[[:space:]]*SteamIdHashSalt[[:space:]]*=.*/SteamIdHashSalt = $SALT/" "$REUNION_CONFIG"
+    else
+      printf '\nSteamIdHashSalt = %s\n' "$SALT" >> "$REUNION_CONFIG"
+    fi
+  fi
 fi
 
 # Permit legacy protocol 47/48 clients that do not provide a unique auth ID.

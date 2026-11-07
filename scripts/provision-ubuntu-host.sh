@@ -5,10 +5,10 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 [[ "$EUID" -eq 0 ]] || fail "Run this provisioning script as root (for example: sudo bash scripts/provision-ubuntu-host.sh)."
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SERVER_USER="${CS16_SERVER_USER:-cs16}"
-SERVER_DIR="${CS16_SERVER_DIR:-/opt/cs16}"
-STEAMCMD_DIR="${CS16_STEAMCMD_DIR:-/opt/steamcmd}"
-STEAMWORKS_DIR="${CS16_STEAMWORKS_DIR:-/opt/steamworks-redist}"
+SERVER_USER="cs16"
+SERVER_DIR="/opt/cs16"
+STEAMCMD_DIR="/opt/steamcmd"
+STEAMWORKS_DIR="/opt/steamworks-redist"
 REHLDS_VERSION="${REHLDS_VERSION:-3.15.0.896}"
 
 for cmd in apt-get curl tar runuser file find install systemctl; do
@@ -93,8 +93,12 @@ chown -R "$SERVER_USER:$SERVER_USER" "$SERVER_DIR"
 systemctl daemon-reload
 systemctl enable --now cs16-rehlds.service
 
-echo "[8/8] ReHLDS host provisioned."
-systemctl --no-pager --full status cs16-rehlds.service || true
+echo "[8/8] Checking the ReHLDS systemd service..."
+if ! systemctl is-active --quiet cs16-rehlds.service; then
+  journalctl -u cs16-rehlds.service -n 100 --no-pager || true
+  fail "ReHLDS service did not stay active. Review the journal above."
+fi
+systemctl --no-pager --full status cs16-rehlds.service
 cat <<EOF
 
 Next:

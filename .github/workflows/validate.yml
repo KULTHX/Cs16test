@@ -31,3 +31,6 @@ jobs:
 
       - name: Validate example server configuration
         run: bash scripts/validate-config.sh config/server.cfg.example
+
+      - name: Validate dashboard status JSON
+        run: python3 -m json.tool dashboard/status.json > /dev/null

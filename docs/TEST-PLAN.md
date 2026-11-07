@@ -31,6 +31,7 @@ The initial ReHLDS-only smoke test passed on 2026-11-07. The headless `[S_API FA
 ## Stage 3 — Persistent host
 
 - [ ] Run `scripts/provision-ubuntu-host.sh` on an always-on permitted Linux host.
+- [x] Add a manual SSH deployment workflow that syncs the repo and invokes the host provisioner once host secrets are configured.
 - [ ] `cs16-rehlds.service` is active.
 - [ ] ReHLDS starts automatically after host reboot.
 - [ ] Kill the server process and confirm systemd restarts it.

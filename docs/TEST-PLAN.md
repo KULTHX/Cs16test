@@ -21,15 +21,17 @@ On a Linux x86 host where game-server operation is permitted:
 - [ ] Confirm `hlds_run`, `engine_i486.so`, and `cstrike/liblist.gam` exist.
 - [ ] Install the pinned ReHLDS release and verify its detached GPG signature.
 - [ ] Confirm the original engine was backed up and the ReHLDS engine replaced it.
-- [ ] Start the local-only smoke test and confirm the startup log identifies ReHLDS.
+- [x] Start the bounded GitHub Actions smoke test and confirm the startup log identifies ReHLDS 3.15.0.896.
 
-**Pass condition:** The process starts and remains alive for the smoke-test window with the ReHLDS engine loaded.
+**CI smoke-test result (2026-11-07): PASSED at 20 slots.** The engine reported ReHLDS 3.15.0.896-dev, protocol 48, the server initialized logging, and the first round started. The headless `[S_API FAIL] SteamAPI_Init()` diagnostic appeared but was non-fatal in this run; no fatal startup error or crash occurred. This does not verify a local client query or public access.
+
+**Pass condition for full Stage 1:** The process starts and remains alive with the ReHLDS engine loaded, and a local GoldSrc query succeeds.
 
 ## Stage 2 — Local game-server behavior
 
 - [ ] Place `config/server.cfg.example` at `cstrike/server.cfg`.
 - [ ] Start on `de_dust2` with `+maxplayers 20`.
-- [ ] Confirm a local GoldSrc query receives a response.
+- [ ] Confirm a local GoldSrc query receives a response (not yet tested by the CI smoke test).
 - [ ] Join from a local CS 1.6 client.
 - [ ] Test round transitions and map changes.
 

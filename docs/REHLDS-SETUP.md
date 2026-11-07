@@ -42,7 +42,7 @@ The installer:
 - Places `metamod_i386.so` in `cstrike/addons/metamod`.
 - Registers Metamod-R in `liblist.gam`.
 - Loads `reunion_mm_i386.so` through Metamod's `plugins.ini`.
-- Installs the official `reunion.cfg` with `AuthVersion = 4`.
+- Installs the official `reunion.cfg` with `AuthVersion = 3`.
 - Sets `cid_NoSteam47 = 3` and `cid_NoSteam48 = 3` for clients without a unique auth ID.
 - Creates a random `SteamIdHashSalt` if none exists.
 

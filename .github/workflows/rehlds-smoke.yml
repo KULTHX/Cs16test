@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/rehlds-smoke.yml"
+      - "scripts/install-rehlds.sh"
   workflow_dispatch:
     inputs:
       maxplayers:

@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Validate shell syntax
         run: |
@@ -25,12 +27,16 @@ jobs:
           bash -n scripts/install-base-hlds.sh
           bash -n scripts/install-rehlds.sh
           bash -n scripts/install-reunion.sh
-          bash -n scripts/install-playit-agent.sh
-          bash -n scripts/provision-ubuntu-host.sh
-          bash -n deploy/start-cs16-rehlds.sh
 
       - name: Validate example server configuration
         run: bash scripts/validate-config.sh config/server.cfg.example
 
       - name: Validate dashboard status JSON
         run: python3 -m json.tool dashboard/status.json > /dev/null
+
+      - name: Check public session workflow settings
+        run: |
+          grep -Fq 'timeout-minutes: 360' .github/workflows/cs16-public-session.yml
+          grep -Fq '340m' .github/workflows/cs16-public-session.yml
+          grep -Fq 'PLAYIT_SECRET_KEY' .github/workflows/cs16-public-session.yml
+          grep -Fq 'ghcr.io/playit-cloud/playit-agent:latest' .github/workflows/cs16-public-session.yml

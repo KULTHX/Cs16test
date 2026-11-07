@@ -20,7 +20,7 @@ On a host where running a game server is permitted:
 - [ ] Install HLDS using legitimate Steam/Valve distribution methods.
 - [ ] Install/verify the Counter-Strike 1.6 server content.
 - [ ] Place the server configuration at `cstrike/server.cfg`.
-- [ ] Start with `de_dust2` and a conservative player limit.
+- [ ] Start with `de_dust2` and a conservative player limit using the HLDS launch argument `+maxplayers N` (for example, `+maxplayers 20`). The `maxplayers` value is a startup argument, not a `server.cfg` directive.
 - [ ] Confirm the server process remains healthy.
 - [ ] Confirm the server responds to a local GoldSrc server query.
 

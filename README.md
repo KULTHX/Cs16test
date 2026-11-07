@@ -36,6 +36,7 @@ docs/
   REHLDS-SETUP.md
   TEST-PLAN.md
   PUBLIC-HOST-PLAYIT.md
+  DEPLOY-FROM-GITHUB.md
 scripts/
   install-base-hlds.sh
   install-rehlds.sh
@@ -46,6 +47,7 @@ scripts/
 .github/workflows/
   validate.yml
   rehlds-smoke.yml
+  deploy-rehlds-host.yml
 ```
 
 ## Deploy on an always-on Ubuntu/Debian host

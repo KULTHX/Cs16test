@@ -1,17 +1,13 @@
-name: CS 1.6 one-off Playit test (GitHub-hosted)
+name: CS 1.6 public session (GitHub-hosted)
 
 on:
-  # A single marker-file push starts the one-off test automatically.
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/one-off-test.trigger"
-  # Keep manual dispatch available for maintainers; there is no recurring schedule.
+  # Start a fresh bounded session every six hours.
+  schedule:
+    - cron: "17 0,6,12,18 * * *"
   workflow_dispatch:
     inputs:
       maxplayers:
-        description: Server slot target for this one-off test
+        description: Server slot target for this session
         required: true
         type: choice
         options:
@@ -30,7 +26,7 @@ jobs:
   public-session:
     name: Run ReHLDS and Playit tunnel for a bounded session
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    timeout-minutes: 360
     env:
       MAXPLAYERS: ${{ github.event.inputs.maxplayers || '20' }}
 
@@ -156,7 +152,7 @@ jobs:
           LOG_FILE="$RUNNER_TEMP/rehlds-session.log"
 
           echo "Starting ReHLDS on loopback UDP 27015 with $MAXPLAYERS slots..."
-          timeout --signal=TERM --kill-after=30s 60m \
+          timeout --signal=TERM --kill-after=30s 340m \
             ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
             +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +sv_lan 0 \
             > "$LOG_FILE" 2>&1 &
@@ -201,7 +197,7 @@ jobs:
           fi
           docker logs --tail 60 playit || true
 
-          echo "Public session is active. One-off test session length: up to 60 minutes."
+          echo "Public session is active. Session length: up to 340 minutes (5 hours 40 minutes)."
           set +e
           wait "$SERVER_PID"
           STATUS=$?
@@ -213,7 +209,7 @@ jobs:
             exit 1
           fi
 
-          echo "Session reached its planned time limit; GitHub Actions will release this runner; no new run is scheduled."
+          echo "Session reached its planned time limit. A fresh scheduled session is expected at the next six-hour slot; GitHub may delay or drop scheduled events."
 
       - name: Capture session logs and stop Playit agent
         if: always()

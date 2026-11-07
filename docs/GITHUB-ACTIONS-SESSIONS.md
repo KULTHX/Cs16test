@@ -34,11 +34,12 @@ Official documentation:
 2. Add it to the repository under **Settings → Secrets and variables → Actions → New repository secret**:
    - Name: `PLAYIT_SECRET_KEY`
    - Value: your Playit Docker agent secret key
-3. In the Playit dashboard, create a UDP tunnel for that agent:
+3. (Optional but recommended) Add a second Actions secret named `REUNION_HASH_SALT` containing a random value of at least 32 letters, digits, underscores, or hyphens. Keep the same value across sessions so IP-derived ReUnion IDs remain stable. Generate it privately with `openssl rand -hex 32`; do not paste it into chat. If omitted, each fresh runner generates a new salt, so IP-derived IDs may change between sessions.
+4. In the Playit dashboard, create a UDP tunnel for that agent:
    - Tunnel type: UDP
    - Local/origin address: `127.0.0.1`
    - Local/origin port: `27015`
-4. Note the assigned public address and port. Do not paste the secret key into Git or chat.
+5. Note the assigned public address and port. Do not paste either secret into Git or chat.
 
 Official Playit Docker instructions: https://github.com/playit-cloud/playit-agent#docker
 

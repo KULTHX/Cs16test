@@ -1,14 +1,11 @@
-name: CS 1.6 public session (GitHub-hosted)
+name: CS 1.6 one-off Playit test (GitHub-hosted)
 
 on:
-  # Start a fresh bounded session every six hours.
-  # GitHub may delay or drop scheduled events during periods of high load.
-  schedule:
-    - cron: "17 0,6,12,18 * * *"
+  # One-off manual test only. No recurring schedule.
   workflow_dispatch:
     inputs:
       maxplayers:
-        description: Server slot target for this session
+        description: Server slot target for this one-off test
         required: true
         type: choice
         options:
@@ -27,7 +24,7 @@ jobs:
   public-session:
     name: Run ReHLDS and Playit tunnel for a bounded session
     runs-on: ubuntu-22.04
-    timeout-minutes: 360
+    timeout-minutes: 90
     env:
       MAXPLAYERS: ${{ github.event.inputs.maxplayers || '20' }}
 
@@ -153,7 +150,7 @@ jobs:
           LOG_FILE="$RUNNER_TEMP/rehlds-session.log"
 
           echo "Starting ReHLDS on loopback UDP 27015 with $MAXPLAYERS slots..."
-          timeout --signal=TERM --kill-after=30s 340m \
+          timeout --signal=TERM --kill-after=30s 60m \
             ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
             +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +sv_lan 0 \
             > "$LOG_FILE" 2>&1 &
@@ -198,7 +195,7 @@ jobs:
           fi
           docker logs --tail 60 playit || true
 
-          echo "Public session is active. Scheduled session length: up to 340 minutes."
+          echo "Public session is active. One-off test session length: up to 60 minutes."
           set +e
           wait "$SERVER_PID"
           STATUS=$?
@@ -210,7 +207,7 @@ jobs:
             exit 1
           fi
 
-          echo "Session reached its planned time limit; GitHub Actions will release this runner."
+          echo "Session reached its planned time limit; GitHub Actions will release this runner; no new run is scheduled."
 
       - name: Capture session logs and stop Playit agent
         if: always()

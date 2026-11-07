@@ -72,7 +72,7 @@ sudo systemctl enable --now playit
 
 The `playit setup` command is the one-time account claim. In the Playit dashboard, create a **UDP** tunnel whose local/origin endpoint is `127.0.0.1:27015`. Share the public address and port Playit assigns. The players do not install Playit.
 
-See [docs/PUBLIC-HOST-PLAYIT.md](docs/PUBLIC-HOST-PLAYIT.md) before publishing the address.
+See [docs/PUBLIC-HOST-PLAYIT.md](docs/PUBLIC-HOST-PLAYIT.md) before publishing the address. For secure source deployment to the host, see [docs/DEPLOY-FROM-GITHUB.md](docs/DEPLOY-FROM-GITHUB.md).
 
 **Public status dashboard:** [cs16-community-status.vercel.app](https://cs16-community-status.vercel.app). It is live and currently reports `PREPARING` because no permanent host or public UDP tunnel has been configured yet.
 

@@ -1,104 +1,110 @@
 # CS 1.6 ReHLDS Server Lab
 
-A reproducible Counter-Strike 1.6 GoldSrc server project targeting 20–32 player slots.
+A Counter-Strike 1.6 GoldSrc public-session experiment built with **GitHub Actions + Playit + Vercel only**.
 
-## Project status
+There is no Oracle VM, VPS, home computer, or separately rented game host in this design.
 
-**Milestone 3 passed:** the ReHLDS-only local smoke test ran on GitHub Actions on 2026-11-07. It installed and verified ReHLDS 3.15.0.896, initialized GoldSrc protocol 48, loaded the map, and reached `World triggered "Round_Start"`.
+## Verified game stack
 
-**Milestone 4 passed locally:** on 2026-11-07, the extended GitHub Actions smoke test loaded ReHLDS 3.15.0.896-dev, Metamod-R 1.3.0.149, and ReUnion 0.2.0.25. The `meta list` output showed `Reunion RUN`, and the server reached `Round_Start`. The repository also includes a persistent-host deployment package, a systemd service with automatic restart, and a Playit Linux-agent installer. No public endpoint or 20–32 player capacity has been claimed yet.
+**Local GitHub Actions smoke test passed on 2026-11-07:**
+- ReHLDS 3.15.0.896-dev.
+- Metamod-R 1.3.0.149.
+- ReUnion 0.2.0.25, shown as `RUN` in `meta list`.
+- GoldSrc protocol 48.
+- `de_dust2` reached `Round_Start`.
 
-GitHub Actions remains a temporary CI environment, not a persistent public game host. The production game process must run on an always-on Linux host that permits dedicated game servers.
+This proves the engine and plugin stack can start on a GitHub-hosted Linux runner. It does not yet prove public UDP reachability or that 20–32 real players can be sustained.
 
-## Stack
+## The three services
 
-- Game: Counter-Strike 1.6 / GoldSrc.
-- Engine: ReHLDS 3.15.0.896 (replaces the original HLDS engine binary).
-- Compatibility layer: Metamod-R 1.3.0.149 + ReUnion 0.2.0.25.
-- Base server/game files: SteamCMD app 90, `steam_legacy` branch, as required by ReHLDS.
-- Steamworks runtime: app 1007, for the 32-bit Steam client library used by the dedicated server.
-- Game port: UDP 27015.
-- Initial map: `de_dust2`.
-- Initial production target: 20 slots. Increase only after player/network tests; 32 is the configured ceiling, not a performance guarantee.
+- **GitHub Actions:** starts a temporary Linux runner, installs the server, and runs one public session.
+- **Playit:** forwards public UDP traffic to the runner's local `127.0.0.1:27015`.
+- **Vercel:** serves the public status page only. It does not run the game server.
 
-ReHLDS replaces the engine but does not replace the Counter-Strike game files. SteamCMD is used to obtain the required base files.
+## Automatic session rotation
+
+The workflow `.github/workflows/cs16-public-session.yml` is scheduled four times per day:
+- 00:17 UTC
+- 06:17 UTC
+- 12:17 UTC
+- 18:17 UTC
+
+Each run starts ReHLDS for up to **340 minutes (5 hours 40 minutes)** after setup. The GitHub-hosted job has a six-hour hard limit. The next scheduled run starts a fresh runner and reconnects the Playit agent.
+
+This is an experimental six-hour rotation, not guaranteed 24/7 uptime. Players disconnect when a session ends; the next runner needs time to install files and reconnect. GitHub documents that scheduled runs can be delayed or dropped during high load. The workflow deliberately stays within GitHub's execution limit and does not chain jobs to evade it.
+
+Official limits and scheduling behavior:
+- https://docs.github.com/en/actions/reference/limits
+- https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+- https://docs.github.com/en/actions/how-tos/troubleshoot-workflows
+
+## One-time Playit setup (required before public sessions)
+
+1. Generate a Playit Docker agent secret key:
+   https://playit.gg/account/setup/wizard/new-account/docker/docker-name
+2. In this repository, open **Settings → Secrets and variables → Actions → New repository secret**.
+3. Add the secret:
+   - Name: `PLAYIT_SECRET_KEY`
+   - Value: the generated Playit Docker agent key.
+4. In the Playit dashboard, create a **UDP** tunnel for this agent:
+   - Local/origin address: `127.0.0.1`
+   - Local/origin port: `27015`
+5. Keep the key secret. Do not put it in repository files or chat.
+
+Playit's official agent Docker instructions: https://github.com/playit-cloud/playit-agent#docker
+
+## Start and monitor
+
+After adding `PLAYIT_SECRET_KEY`, the schedule starts sessions automatically. For the first test, you can also open **Actions → CS 1.6 public session (GitHub-hosted) → Run workflow** and choose 20 slots.
+
+A successful run must show:
+- ReHLDS version and GoldSrc protocol startup.
+- ReUnion status `RUN`.
+- The map reaching `Round_Start`.
+- Playit agent container remaining active.
+
+Then use the public hostname and port assigned in the Playit dashboard to connect from a real CS 1.6 client on a separate Internet connection.
+
+The Playit tunnel is not considered verified until an external player has joined successfully.
+
+## Player capacity
+
+Start with 20 slots. Increase to 32 only after 20 real clients have joined and the runner remains stable. A `+maxplayers 32` setting is only a slot limit, not proof of performance.
+
+## Public status page
+
+https://cs16-community-status.vercel.app/
+
+The page is live and currently reports `PREPARING`. It will remain that way until an external Playit connection is tested and the status data is updated. The static page does not itself query the game server.
 
 ## Repository layout
 
 ```text
 config/
   server.cfg.example
-deploy/
-  cs16-rehlds.service
-  cs16-rehlds.env.example
-  start-cs16-rehlds.sh
+dashboard/
+  index.html
+  styles.css
+  app.js
+  status.json
 docs/
   REHLDS-SETUP.md
   TEST-PLAN.md
-  PUBLIC-HOST-PLAYIT.md
-  DEPLOY-FROM-GITHUB.md
-  FREE-HOST-OPTION-OCI.md
+  GITHUB-ACTIONS-SESSIONS.md
 scripts/
   install-base-hlds.sh
   install-rehlds.sh
   install-reunion.sh
-  install-playit-agent.sh
-  provision-ubuntu-host.sh
   validate-config.sh
 .github/workflows/
   validate.yml
   rehlds-smoke.yml
-  deploy-rehlds-host.yml
+  cs16-public-session.yml
 ```
 
-## Deploy on an always-on Ubuntu/Debian host
+## Security
 
-Clone this repository on a Linux x86_64 machine that you control and where hosting a game server is permitted, then run:
-
-```bash
-sudo bash scripts/provision-ubuntu-host.sh
-```
-
-The provisioner installs SteamCMD, the CS 1.6 base files, Steamworks runtime, ReHLDS, Metamod-R, and ReUnion. It generates a private RCON password on the host if one is not already configured, then installs and starts the `cs16-rehlds` systemd service.
-
-The systemd unit uses `Restart=always`, so it brings the game server process back when it exits unexpectedly. It also starts on host boot.
-
-## Expose the server with Playit UDP
-
-Install the official Linux agent:
-
-```bash
-sudo bash scripts/install-playit-agent.sh
-sudo playit setup
-sudo systemctl enable --now playit
-```
-
-The `playit setup` command is the one-time account claim. In the Playit dashboard, create a **UDP** tunnel whose local/origin endpoint is `127.0.0.1:27015`. Share the public address and port Playit assigns. The players do not install Playit.
-
-See [docs/PUBLIC-HOST-PLAYIT.md](docs/PUBLIC-HOST-PLAYIT.md) before publishing the address. For secure source deployment to the host, see [docs/DEPLOY-FROM-GITHUB.md](docs/DEPLOY-FROM-GITHUB.md).
-
-**Public status dashboard:** [cs16-community-status.vercel.app](https://cs16-community-status.vercel.app). It is live and currently reports `PREPARING` because no permanent host or public UDP tunnel has been configured yet. A possible no-cost x86 host is documented in [docs/FREE-HOST-OPTION-OCI.md](docs/FREE-HOST-OPTION-OCI.md), with performance and idle-reclamation caveats.
-
-## Modified-client compatibility
-
-ReUnion is configured to allow protocol 47 and 48 GoldSrc clients that do not provide a unique authorization ID. These fallback IDs are IP-derived and salted. Players sharing one public IP (for example, behind the same NAT) can therefore share an identity; the configuration disables ReUnion's same-ID connection limit to avoid blocking a group behind one address. This has trade-offs for bans and identity tracking. Do not change the generated `SteamIdHashSalt` after opening the server unless you intend to change generated player IDs.
-
-## Operations
-
-```bash
-sudo systemctl status cs16-rehlds
-sudo journalctl -u cs16-rehlds -f
-sudo systemctl restart cs16-rehlds
-sudo systemctl status playit
-```
-
-Set `CS16_SLOTS=20`, `CS16_PORT=27015`, and `CS16_MAP=de_dust2` in `/etc/default/cs16-rehlds`. The launcher accepts a maximum of 32 slots. Do not increase the slot count until the server has been tested with real clients.
-
-## Security and boundaries
-
-- Never commit RCON passwords, Steam credentials, Playit agent keys, private keys, or other secrets.
-- The provisioner generates a private RCON password locally. Retrieve it on the host only when needed.
-- Do not expose RCON without a strong password.
-- Use game/server files you are authorized to use.
-- Vercel can host a web status/control panel later; it cannot host the persistent UDP game process.
-- GitHub Actions validates and tests builds only. It is not used to chain temporary runners into a permanent game host.
+- Never commit RCON passwords, Steam credentials, or the Playit agent key.
+- A fresh random RCON password is generated during every session.
+- ReHLDS binds to loopback; public traffic is expected through the Playit UDP tunnel.
+- Use only server/game files that you are authorized to use.

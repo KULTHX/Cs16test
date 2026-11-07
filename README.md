@@ -4,7 +4,7 @@ A reproducible preparation and test project for a public Counter-Strike 1.6 Gold
 
 ## Project status
 
-**Milestone 2: ReHLDS installation scripts and a local smoke-test workflow added.**
+**Milestone 3: ReHLDS local smoke test passed on GitHub Actions (2026-11-07).** The 20-slot test installed ReHLDS 3.15.0.896, verified its release signature, started GoldSrc protocol 48, loaded the map, and reached `World triggered "Round_Start"`. This verifies local process startup only; public UDP access, external client joins, 32-player capacity, and continuous hosting remain untested.
 
 The selected engine is **ReHLDS 3.15.0.896** (pinned). The repository contains installation scripts and configuration examples; it does not contain copyrighted game assets, server binaries, credentials, or a permanent game host.
 

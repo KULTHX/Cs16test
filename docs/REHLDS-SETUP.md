@@ -48,7 +48,7 @@ The installer:
 
 Type 3 generates a Steam-style ID from the connecting IP. This supports clients without a unique ID, but multiple users behind the same NAT may share an identity. The installer sets `IDClientsLimit = 0` so those users are not blocked by the same-ID connection limit. This also means identity-based bans may affect several users behind one public IP. Keep the generated salt stable; changing it changes the generated IDs.
 
-After startup, verify the plugin list with `meta list`. ReUnion should show status `RUN`.
+After startup, verify the plugin list with `meta list`. ReUnion should show status `RUN`. This was confirmed in the GitHub Actions smoke test on 2026-11-07; the workflow loads `meta list` from `cstrike/server.cfg` after map initialization because issuing it as a startup argument runs too early.
 
 Official references:
 - ReUnion: https://github.com/rehlds/ReUnion

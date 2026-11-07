@@ -1,0 +1,15 @@
+{
+  "status": "preparing",
+  "serverName": "CS 1.6 ReHLDS Community",
+  "game": "Counter-Strike 1.6",
+  "engine": "ReHLDS 3.15.0.896",
+  "metamod": "1.3.0.149",
+  "reunion": "0.2.0.25",
+  "map": "de_dust2",
+  "players": null,
+  "maxPlayers": 20,
+  "publicAddress": null,
+  "publicPort": null,
+  "updatedAt": null,
+  "message": "The local ReHLDS smoke test passed, including Metamod-R and ReUnion. Public hosting and external player connections have not been verified yet."
+}

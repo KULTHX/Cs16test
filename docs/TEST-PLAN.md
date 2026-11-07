@@ -2,13 +2,14 @@
 
 ## Goal
 
-Validate a public Counter-Strike 1.6 ReHLDS server targeting 20–32 slots. GitHub Actions is for bounded CI and local smoke testing; a persistent service runs on a separately controlled Linux host.
+Run public Counter-Strike 1.6 sessions using only GitHub-hosted runners, Playit UDP, and Vercel for the status page. No external VM, VPS, Oracle account, or home server is part of the target design.
 
 ## Stage 0 — Repository and configuration
 
-- [x] Shell syntax checks pass for all installers and deploy scripts.
-- [ ] Example server config uses `sv_lan 0`.
-- [ ] No passwords, Steam credentials, or tunnel tokens are committed.
+- [x] Shell syntax checks pass for the installation scripts.
+- [x] Example server config uses `sv_lan 0`.
+- [x] No passwords, Steam credentials, or tunnel tokens are committed.
+- [x] Public Vercel status dashboard returns HTTP 200.
 
 ## Stage 1 — ReHLDS engine
 
@@ -17,46 +18,46 @@ Validate a public Counter-Strike 1.6 ReHLDS server targeting 20–32 slots. GitH
 - [x] ReHLDS 3.15.0.896 release signature verifies.
 - [x] Local 20-slot smoke test reports protocol 48, ReHLDS version, server bind, log initialization, and `Round_Start`.
 
-The initial ReHLDS-only smoke test passed on 2026-11-07. The headless `[S_API FAIL] SteamAPI_Init()` diagnostic appeared, but no fatal startup error or crash occurred in the verified run.
+The initial headless `[S_API FAIL] SteamAPI_Init()` diagnostic appeared but was non-fatal in the verified smoke run.
 
 ## Stage 2 — ReUnion compatibility
 
 - [x] Metamod-R loads.
-- [x] ReUnion appears in `meta list` with status `RUN` in the GitHub Actions smoke test on 2026-11-07.
+- [x] ReUnion appears in `meta list` with status `RUN` in GitHub Actions on 2026-11-07.
 - [ ] Protocol 47 client without unique auth ID can connect.
 - [ ] Protocol 48 client without unique auth ID can connect.
 - [ ] Standard Steam client can connect.
 - [ ] Verify two clients behind the same NAT can both connect; document shared IP-derived IDs and ban implications.
 
-## Stage 3 — Persistent host
+## Stage 3 — Scheduled GitHub-hosted session
 
-- [ ] Run `scripts/provision-ubuntu-host.sh` on an always-on permitted Linux host.
-- [x] Add a manual SSH deployment workflow that syncs the repo and invokes the host provisioner once host secrets are configured.
-- [ ] `cs16-rehlds.service` is active.
-- [ ] ReHLDS starts automatically after host reboot.
-- [ ] Kill the server process and confirm systemd restarts it.
-- [ ] Confirm config, maps, logs, ReUnion salt, and other server data persist.
+- [x] Create a session workflow that installs ReHLDS, Metamod-R, and ReUnion.
+- [x] Schedule sessions four times per day.
+- [x] Keep each session below the six-hour GitHub-hosted job limit.
+- [x] Add teardown and session-log artifacts.
+- [ ] Add the repository Actions secret `PLAYIT_SECRET_KEY`.
+- [ ] Create a UDP tunnel in the Playit dashboard to `127.0.0.1:27015`.
+- [ ] Run the first public session and confirm the Playit agent connects.
 
-## Stage 4 — Playit UDP
+**Important:** scheduled runs may be delayed or dropped by GitHub. There will be a downtime window between sessions while a new runner installs the files and reconnects Playit. This is not a guaranteed 24/7 service.
 
-- [ ] Install the official Playit Linux agent.
-- [ ] Claim the agent to the Playit account once.
-- [ ] Create UDP tunnel to `127.0.0.1:27015`.
-- [ ] Confirm Playit agent service starts at boot.
-- [ ] Query the public endpoint from an external network.
-- [ ] Join from a real external CS 1.6 client using the assigned public address and port.
+## Stage 4 — Public UDP and players
 
-## Stage 5 — Capacity and stability
+- [ ] Query the public Playit endpoint from another Internet connection.
+- [ ] Join from a real CS 1.6 client using the Playit-assigned address and port.
+- [ ] Test standard Steam and supported protocol 47/48 clients.
+- [ ] Confirm reconnects and map changes.
+- [ ] Start at 20 players, then increase to 32 only after measured stability.
 
-Increase test load gradually: 1, 5, 10, 20, then 32 clients only if all prior levels are stable.
+## Stage 5 — Vercel status page
 
-Measure CPU, memory, network throughput, packet loss, server frame stability, and join/leave behavior. A 32-slot setting alone is not proof that the host can sustain 32 players.
+- [x] Publish the static status dashboard.
+- [ ] Update status only after a public external client successfully joins.
+- [ ] Add reliable session-state reporting if it can be done without exposing credentials.
 
 ## Current blockers
 
-- An always-on production host has not been selected or provisioned.
-- Vercel status dashboard is live, but currently displays PREPARING and is not connected to a live UDP query.
-- The Playit account agent has not been claimed and no public UDP tunnel exists.
-- No external client join has been observed yet.
-- ReUnion loading is verified locally in CI; real protocol 47/48 client joins still need testing.
-- 20–32-player load testing remains outstanding.
+- `PLAYIT_SECRET_KEY` has not yet been added to GitHub Actions Secrets.
+- A UDP tunnel has not yet been configured in Playit.
+- No external client has joined yet.
+- 20–32-player performance has not been measured.

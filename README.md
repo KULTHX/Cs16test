@@ -42,7 +42,7 @@ We will only add a bounded, manually triggered server smoke test after selecting
 1. Obtain HLDS and game content through legitimate Steam/Valve distribution methods on the chosen host.
 2. Copy `config/server.cfg.example` to the server's `cstrike/server.cfg`.
 3. Set a unique RCON password outside Git and outside this repository.
-4. Start HLDS with the selected map and a maximum player count no greater than 32.
+4. Start HLDS with the selected map and a maximum player count no greater than 32. On a Linux HLDS host, the launch arguments are typically passed to `hlds_run`, for example: `./hlds_run -game cstrike -console -port 27015 +maxplayers 32 +map de_dust2`. Keep `maxplayers` in launch arguments, not in `server.cfg`.
 5. Verify the server locally, then verify UDP reachability from an external network.
 6. Only after direct networking is understood, evaluate a UDP tunnel provider such as Playit.
 

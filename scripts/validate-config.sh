@@ -10,17 +10,19 @@ fail() {
 
 [[ -f "$CONFIG_FILE" ]] || fail "Config file not found: $CONFIG_FILE"
 
-# Remove comments and blank lines before checking expected baseline settings.
+# Strip // comments and blank lines before checking required directives.
 active_config="$(sed 's,//.*$,,' "$CONFIG_FILE" | sed '/^[[:space:]]*$/d')"
 
 grep -Eiq '^[[:space:]]*sv_lan[[:space:]]+0([[:space:]]|$)' <<<"$active_config" \
   || fail "Expected sv_lan 0 for an Internet server."
 
-grep -Eiq '^[[:space:]]*maxplayers[[:space:]]+(20|21|22|23|24|25|26|27|28|29|30|31|32)([[:space:]]|$)' <<<"$active_config" \
-  || fail "Expected maxplayers between 20 and 32."
-
 grep -Eiq '^[[:space:]]*hostname[[:space:]]+".+"' <<<"$active_config" \
   || fail "A non-empty quoted hostname is required."
+
+# maxplayers is passed to HLDS at launch, not placed in server.cfg.
+if grep -Eiq '^[[:space:]]*maxplayers[[:space:]]+' "$CONFIG_FILE"; then
+  fail "Move maxplayers to the HLDS startup arguments (for example +maxplayers 32)."
+fi
 
 # Reject accidentally committed inline RCON credentials.
 if grep -Eiq '^[[:space:]]*rcon_password[[:space:]]+' "$CONFIG_FILE"; then

@@ -125,6 +125,7 @@ jobs:
         env:
           METAMOD_VERSION: 1.3.0.149
           REUNION_VERSION: 0.2.0.25
+          REUNION_HASH_SALT: ${{ secrets.REUNION_HASH_SALT }}
         run: |
           set -euo pipefail
           bash scripts/install-reunion.sh "$RUNNER_TEMP/hlds"

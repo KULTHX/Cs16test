@@ -37,6 +37,7 @@ docs/
   TEST-PLAN.md
   PUBLIC-HOST-PLAYIT.md
   DEPLOY-FROM-GITHUB.md
+  FREE-HOST-OPTION-OCI.md
 scripts/
   install-base-hlds.sh
   install-rehlds.sh
@@ -76,7 +77,7 @@ The `playit setup` command is the one-time account claim. In the Playit dashboar
 
 See [docs/PUBLIC-HOST-PLAYIT.md](docs/PUBLIC-HOST-PLAYIT.md) before publishing the address. For secure source deployment to the host, see [docs/DEPLOY-FROM-GITHUB.md](docs/DEPLOY-FROM-GITHUB.md).
 
-**Public status dashboard:** [cs16-community-status.vercel.app](https://cs16-community-status.vercel.app). It is live and currently reports `PREPARING` because no permanent host or public UDP tunnel has been configured yet.
+**Public status dashboard:** [cs16-community-status.vercel.app](https://cs16-community-status.vercel.app). It is live and currently reports `PREPARING` because no permanent host or public UDP tunnel has been configured yet. A possible no-cost x86 host is documented in [docs/FREE-HOST-OPTION-OCI.md](docs/FREE-HOST-OPTION-OCI.md), with performance and idle-reclamation caveats.
 
 ## Modified-client compatibility
 

@@ -1,0 +1,92 @@
+name: ReHLDS local smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      maxplayers:
+        description: Player slots for the local startup test
+        required: true
+        type: choice
+        options:
+          - "20"
+          - "32"
+        default: "20"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Install and start ReHLDS locally
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install 32-bit runtime and tooling
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates gpg unzip lib32gcc-s1 lib32stdc++6 lib32z1
+
+      - name: Download SteamCMD
+        run: |
+          mkdir -p "$RUNNER_TEMP/steamcmd"
+          curl --fail --location --retry 3 \
+            https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            -o "$RUNNER_TEMP/steamcmd/steamcmd_linux.tar.gz"
+          tar -xzf "$RUNNER_TEMP/steamcmd/steamcmd_linux.tar.gz" -C "$RUNNER_TEMP/steamcmd"
+          test -x "$RUNNER_TEMP/steamcmd/steamcmd.sh"
+
+      - name: Install the required CS 1.6 server base
+        run: |
+          bash scripts/install-base-hlds.sh \
+            "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
+            "$RUNNER_TEMP/hlds"
+
+      - name: Replace the engine with signed ReHLDS
+        env:
+          REHLDS_VERSION: 3.15.0.896
+        run: bash scripts/install-rehlds.sh "$RUNNER_TEMP/hlds"
+
+      - name: Prepare loopback-only test configuration
+        run: |
+          sed -E 's/^sv_lan[[:space:]]+0$/sv_lan 1/' \
+            config/server.cfg.example > "$RUNNER_TEMP/hlds/cstrike/server.cfg"
+
+      - name: Start ReHLDS for a short local smoke test
+        env:
+          MAXPLAYERS: ${{ inputs.maxplayers }}
+        run: |
+          cd "$RUNNER_TEMP/hlds"
+          LOG_FILE="$RUNNER_TEMP/rehlds-smoke.log"
+          set +e
+          timeout --signal=TERM --kill-after=5s 45s \
+            ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +sv_lan 1 \
+            > "$LOG_FILE" 2>&1
+          STATUS=$?
+          set -e
+          cat "$LOG_FILE"
+
+          if [[ "$STATUS" -ne 124 ]]; then
+            echo "ERROR: HLDS/ReHLDS exited before the smoke-test timeout (status $STATUS)." >&2
+            exit 1
+          fi
+
+          if ! grep -Eiq 'rehlds' "$LOG_FILE"; then
+            echo "ERROR: The startup log did not identify the ReHLDS engine." >&2
+            exit 1
+          fi
+
+          echo "ReHLDS stayed running for the smoke-test window."
+
+      - name: Upload smoke-test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rehlds-smoke-log
+          path: ${{ runner.temp }}/rehlds-smoke.log
+          if-no-files-found: ignore
+          retention-days: 3

@@ -1,12 +1,10 @@
 // Counter-Strike 1.6 dedicated server example configuration.
 // Copy this file to cstrike/server.cfg on the game-server host.
-// Set the RCON password on the host itself. Never commit it to Git.
+// maxplayers is a startup argument, not a setting in this file.
+// Set a unique RCON password on the host itself. Never commit it to Git.
 
 hostname "CS 1.6 Public Test Server"
- sv_lan 0
-
-// Capacity target. Validate actual performance before opening 32 slots.
-maxplayers 32
+sv_lan 0
 
 // Basic server behavior.
 mp_timelimit 25

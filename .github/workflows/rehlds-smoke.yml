@@ -1,6 +1,12 @@
 name: ReHLDS local smoke test
 
 on:
+  # Run the smoke test automatically when this workflow definition changes.
+  # This is a bounded CI check, not a persistent public game-server service.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/rehlds-smoke.yml"
   workflow_dispatch:
     inputs:
       maxplayers:
@@ -57,7 +63,7 @@ jobs:
 
       - name: Start ReHLDS for a short local smoke test
         env:
-          MAXPLAYERS: ${{ inputs.maxplayers }}
+          MAXPLAYERS: "20"
         run: |
           cd "$RUNNER_TEMP/hlds"
           LOG_FILE="$RUNNER_TEMP/rehlds-smoke.log"

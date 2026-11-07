@@ -1,0 +1,26 @@
+name: Validate CS 1.6 server project
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate configuration and scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate shell syntax
+        run: bash -n scripts/validate-config.sh
+
+      - name: Validate example server configuration
+        run: bash scripts/validate-config.sh config/server.cfg.example

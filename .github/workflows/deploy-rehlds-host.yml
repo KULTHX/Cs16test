@@ -15,12 +15,6 @@ jobs:
     name: Sync and provision ReHLDS host
     runs-on: ubuntu-22.04
     timeout-minutes: 45
-    env:
-      CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
-      CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
-      CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
-      CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
-      CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
 
     steps:
       - name: Check out repository
@@ -30,6 +24,12 @@ jobs:
 
       - name: Validate required deployment secrets
         shell: bash
+        env:
+          CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
+          CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
+          CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
+          CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
+          CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           for name in CS16_SSH_HOST CS16_SSH_USER CS16_SSH_PRIVATE_KEY CS16_SSH_KNOWN_HOSTS; do
@@ -45,6 +45,12 @@ jobs:
 
       - name: Configure SSH with pinned host key
         shell: bash
+        env:
+          CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
+          CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
+          CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
+          CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
+          CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           install -d -m 0700 "$HOME/.ssh"
@@ -55,6 +61,12 @@ jobs:
 
       - name: Create remote deployment directory
         shell: bash
+        env:
+          CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
+          CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
+          CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
+          CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
+          CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           ssh -i "$HOME/.ssh/cs16_deploy" \
@@ -67,6 +79,12 @@ jobs:
 
       - name: Sync source files to host
         shell: bash
+        env:
+          CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
+          CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
+          CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
+          CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
+          CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           rsync -az --delete \
@@ -79,6 +97,12 @@ jobs:
 
       - name: Provision host and restart game service
         shell: bash
+        env:
+          CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
+          CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
+          CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
+          CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
+          CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           ssh -i "$HOME/.ssh/cs16_deploy" \

@@ -74,6 +74,8 @@ The `playit setup` command is the one-time account claim. In the Playit dashboar
 
 See [docs/PUBLIC-HOST-PLAYIT.md](docs/PUBLIC-HOST-PLAYIT.md) before publishing the address.
 
+**Public status dashboard:** [cs16-community-status.vercel.app](https://cs16-community-status.vercel.app). It is live and currently reports `PREPARING` because no permanent host or public UDP tunnel has been configured yet.
+
 ## Modified-client compatibility
 
 ReUnion is configured to allow protocol 47 and 48 GoldSrc clients that do not provide a unique authorization ID. These fallback IDs are IP-derived and salted. Players sharing one public IP (for example, behind the same NAT) can therefore share an identity; the configuration disables ReUnion's same-ID connection limit to avoid blocking a group behind one address. This has trade-offs for bans and identity tracking. Do not change the generated `SteamIdHashSalt` after opening the server unless you intend to change generated player IDs.

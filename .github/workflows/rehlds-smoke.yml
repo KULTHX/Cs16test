@@ -45,23 +45,28 @@ jobs:
           tar -xzf "$RUNNER_TEMP/steamcmd/steamcmd_linux.tar.gz" -C "$RUNNER_TEMP/steamcmd"
           test -x "$RUNNER_TEMP/steamcmd/steamcmd.sh"
 
-      - name: Install Steam client runtime for HLDS
-        run: |
-          STEAMCLIENT="$(find "$RUNNER_TEMP/steamcmd" -type f -name steamclient.so -print -quit)"
-          if [[ -z "$STEAMCLIENT" ]]; then
-            echo "ERROR: SteamCMD archive did not contain linux32/steamclient.so." >&2
-            find "$RUNNER_TEMP/steamcmd" -maxdepth 3 -type f | sort
-            exit 1
-          fi
-          mkdir -p "$HOME/.steam/sdk32"
-          ln -sfn "$STEAMCLIENT" "$HOME/.steam/sdk32/steamclient.so"
-          file "$HOME/.steam/sdk32/steamclient.so"
-
       - name: Install the required CS 1.6 server base
         run: |
           bash scripts/install-base-hlds.sh \
             "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
             "$RUNNER_TEMP/hlds"
+
+      - name: Link SteamCMD Linux runtime for HLDS
+        run: |
+          # The Steam client runtime may appear only after SteamCMD has run.
+          STEAMCLIENT="$(find "$RUNNER_TEMP/steamcmd" "$RUNNER_TEMP/hlds" "$HOME/.steam" \
+            -type f -name steamclient.so -print -quit 2>/dev/null || true)"
+          if [[ -z "$STEAMCLIENT" ]]; then
+            echo "ERROR: steamclient.so was not produced by SteamCMD / app 90." >&2
+            find "$RUNNER_TEMP/steamcmd" "$RUNNER_TEMP/hlds" "$HOME/.steam" \
+              -maxdepth 5 -type f 2>/dev/null | sort | tail -100
+            exit 1
+          fi
+          STEAMCLIENT_DIR="$(dirname "$STEAMCLIENT")"
+          mkdir -p "$HOME/.steam"
+          ln -sfn "$STEAMCLIENT_DIR" "$HOME/.steam/sdk32"
+          test -f "$HOME/.steam/sdk32/steamclient.so"
+          echo "Using Steam client runtime from: $STEAMCLIENT_DIR"
 
       - name: Replace the engine with signed ReHLDS
         env:

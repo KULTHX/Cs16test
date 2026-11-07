@@ -18,7 +18,7 @@ jobs:
     env:
       CS16_SSH_HOST: ${{ secrets.CS16_SSH_HOST }}
       CS16_SSH_USER: ${{ secrets.CS16_SSH_USER }}
-      CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT }}
+      CS16_SSH_PORT: ${{ secrets.CS16_SSH_PORT || '22' }}
       CS16_SSH_PRIVATE_KEY: ${{ secrets.CS16_SSH_PRIVATE_KEY }}
       CS16_SSH_KNOWN_HOSTS: ${{ secrets.CS16_SSH_KNOWN_HOSTS }}
 

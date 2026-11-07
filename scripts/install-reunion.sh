@@ -91,7 +91,7 @@ fi
 sed -i -E \
   -e 's/^[[:space:]]*cid_NoSteam47[[:space:]]*=.*/cid_NoSteam47 = 3/' \
   -e 's/^[[:space:]]*cid_NoSteam48[[:space:]]*=.*/cid_NoSteam48 = 3/' \
-  -e 's/^[[:space:]]*AuthVersion[[:space:]]*=.*/AuthVersion = 4/' \
+  -e 's/^[[:space:]]*AuthVersion[[:space:]]*=.*/AuthVersion = 3/' \
   -e 's/^[[:space:]]*IDClientsLimit[[:space:]]*=.*/IDClientsLimit = 0/' \
   "$REUNION_CONFIG"
 

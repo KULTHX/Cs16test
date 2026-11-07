@@ -108,6 +108,28 @@ jobs:
           REUNION_VERSION: 0.2.0.25
         run: bash scripts/install-reunion.sh "$RUNNER_TEMP/hlds"
 
+      - name: Inspect Metamod and ReUnion installation
+        run: |
+          echo "=== liblist.gam loader directives ==="
+          grep -n -E 'gamedll(_linux)?' "$RUNNER_TEMP/hlds/cstrike/liblist.gam" || true
+          echo "=== Metamod plugins.ini ==="
+          cat "$RUNNER_TEMP/hlds/cstrike/addons/metamod/plugins.ini"
+          echo "=== Installed plugin binaries ==="
+          file "$RUNNER_TEMP/hlds/cstrike/addons/metamod/metamod_i386.so"
+          file "$RUNNER_TEMP/hlds/cstrike/addons/reunion/reunion_mm_i386.so"
+          echo "=== Metamod dependencies ==="
+          ldd "$RUNNER_TEMP/hlds/cstrike/addons/metamod/metamod_i386.so" | tee "$RUNNER_TEMP/metamod-dependencies.txt"
+          if grep -q "not found" "$RUNNER_TEMP/metamod-dependencies.txt"; then
+            echo "ERROR: Metamod-R is missing shared-library dependencies." >&2
+            exit 1
+          fi
+          echo "=== ReUnion dependencies ==="
+          ldd "$RUNNER_TEMP/hlds/cstrike/addons/reunion/reunion_mm_i386.so" | tee "$RUNNER_TEMP/reunion-dependencies.txt"
+          if grep -q "not found" "$RUNNER_TEMP/reunion-dependencies.txt"; then
+            echo "ERROR: ReUnion is missing shared-library dependencies." >&2
+            exit 1
+          fi
+
       - name: Prepare loopback-only test configuration
         run: |
           sed -E 's/^sv_lan[[:space:]]+0$/sv_lan 1/' \
@@ -123,7 +145,7 @@ jobs:
           set +e
           timeout --signal=TERM --kill-after=5s 45s \
             ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
-            +maxplayers "$MAXPLAYERS" +map de_dust2 +meta list +version +sv_lan 1 \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +meta list +meta list +version +sv_lan 1 \
             > "$LOG_FILE" 2>&1
           STATUS=$?
           set -e

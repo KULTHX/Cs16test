@@ -54,6 +54,7 @@ Measure CPU, memory, network throughput, packet loss, server frame stability, an
 ## Current blockers
 
 - An always-on production host has not been selected or provisioned.
+- Vercel status dashboard is live, but currently displays PREPARING and is not connected to a live UDP query.
 - The Playit account agent has not been claimed and no public UDP tunnel exists.
 - No external client join has been observed yet.
 - ReUnion loading is verified locally in CI; real protocol 47/48 client joins still need testing.

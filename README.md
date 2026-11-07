@@ -21,7 +21,7 @@ This proves the engine and plugin stack can start on a GitHub-hosted Linux runne
 - **Playit:** forwards public UDP traffic to the runner's local `127.0.0.1:27015`.
 - **Vercel:** serves the public status page only. It does not run the game server.
 
-## Automatic session rotation
+## One-off test
 
 The workflow `.github/workflows/cs16-public-session.yml` is scheduled four times per day:
 - 00:17 UTC
@@ -55,7 +55,7 @@ Playit's official agent Docker instructions: https://github.com/playit-cloud/pla
 
 ## Start and monitor
 
-After adding `PLAYIT_SECRET_KEY`, the schedule starts sessions automatically. For the first test, you can also open **Actions → CS 1.6 public session (GitHub-hosted) → Run workflow** and choose 20 slots.
+After adding `PLAYIT_SECRET_KEY`, run **Actions → CS 1.6 one-off Playit test (GitHub-hosted) → Run workflow** and choose 20 slots. This is a single test, not a recurring service.
 
 A successful run must show:
 - ReHLDS version and GoldSrc protocol startup.

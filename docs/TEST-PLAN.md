@@ -1,69 +1,86 @@
-# CS 1.6 Server Test Plan
+# ReHLDS Server Test Plan
 
 ## Goal
 
-Validate a public Counter-Strike 1.6 server, initially targeting 20–32 player slots, without assuming that GitHub Actions provides a persistent or publicly reachable game host.
+Validate a public Counter-Strike 1.6 ReHLDS server targeting 20–32 player slots. GitHub Actions is used for bounded validation and a short local smoke test, not permanent hosting.
 
 ## Stage 0 — Repository and configuration
 
-- [ ] GitHub Actions validation workflow passes.
+- [ ] GitHub Actions configuration validation passes.
+- [ ] Both installer scripts pass shell syntax checks.
 - [ ] Example config uses `sv_lan 0`.
-- [ ] Player limit is between 20 and 32.
-- [ ] No passwords or tokens are committed.
+- [ ] No passwords, Steam credentials, or tunnel tokens are committed.
 
-**Pass condition:** CI validates the tracked files.
+**Pass condition:** CI validation succeeds.
 
-## Stage 1 — Dedicated server on an authorized host
+## Stage 1 — Base server files and ReHLDS engine
 
-On a host where running a game server is permitted:
+On a Linux x86 host where game-server operation is permitted:
 
-- [ ] Install HLDS using legitimate Steam/Valve distribution methods.
-- [ ] Install/verify the Counter-Strike 1.6 server content.
-- [ ] Place the server configuration at `cstrike/server.cfg`.
-- [ ] Start with `de_dust2` and a conservative player limit using the HLDS launch argument `+maxplayers N` (for example, `+maxplayers 20`). The `maxplayers` value is a startup argument, not a `server.cfg` directive.
-- [ ] Confirm the server process remains healthy.
-- [ ] Confirm the server responds to a local GoldSrc server query.
+- [ ] Install the base CS 1.6 dedicated-server files through SteamCMD app 90, branch `steam_legacy`.
+- [ ] Confirm `hlds_run`, `engine_i486.so`, and `cstrike/liblist.gam` exist.
+- [ ] Install the pinned ReHLDS release and verify its detached GPG signature.
+- [ ] Confirm the original engine was backed up and the ReHLDS engine replaced it.
+- [ ] Start the local-only smoke test and confirm the startup log identifies ReHLDS.
 
-**Pass condition:** HLDS starts without fatal errors and answers a local query.
+**Pass condition:** The process starts and remains alive for the smoke-test window with the ReHLDS engine loaded.
 
-## Stage 2 — External UDP reachability
+## Stage 2 — Local game-server behavior
 
-- [ ] Confirm which public endpoint and UDP port are assigned by the host or tunnel provider.
-- [ ] Confirm that UDP forwarding targets the actual HLDS host and game port.
-- [ ] Query the endpoint from a network outside the host.
-- [ ] Join using a real CS 1.6 client from an external connection.
+- [ ] Place `config/server.cfg.example` at `cstrike/server.cfg`.
+- [ ] Start on `de_dust2` with `+maxplayers 20`.
+- [ ] Confirm a local GoldSrc query receives a response.
+- [ ] Join from a local CS 1.6 client.
+- [ ] Test round transitions and map changes.
 
-**Pass condition:** An external client can query the server and complete a connection. A successful local query alone is not enough.
+**Pass condition:** A local client can connect, play, disconnect, and reconnect.
 
-## Stage 3 — Capacity and stability
+## Stage 3 — Public UDP reachability
 
-Increase test load gradually: 1, 5, 10, 20, then up to 32 clients only if the previous level is stable.
+Only after a permitted public host has been selected:
 
-Measure:
+- [ ] Confirm the host or tunnel provider supports inbound UDP.
+- [ ] Forward the assigned public UDP port to the HLDS/ReHLDS game port.
+- [ ] Query the public endpoint from a separate network.
+- [ ] Join using a real external CS 1.6 client.
+- [ ] Record the endpoint and any tunnel restrictions.
 
-- CPU and memory usage.
-- Server frame stability.
-- Network throughput and packet loss.
-- Join/leave behavior.
-- Map changes and round transitions.
+**Pass condition:** External query and a real external client connection both succeed.
 
-**Pass condition:** No sustained resource exhaustion or unacceptable network instability at the chosen capacity.
+## Stage 4 — Client compatibility
 
-## Stage 4 — Restart and persistence
+- [ ] Record client build/version and protocol for each test client.
+- [ ] Test standard supported clients first.
+- [ ] Test modified clients separately and record exact connection errors.
+- [ ] Do not assume ReHLDS alone enables every non-Steam protocol.
+- [ ] Evaluate any separate compatibility plugin only after reviewing its behavior and security implications.
+
+**Pass condition:** The supported client matrix is documented and repeatable.
+
+## Stage 5 — Capacity and stability
+
+Increase load gradually: 1, 5, 10, 20, then 32 clients only if prior stages remain stable.
+
+Measure CPU, memory, network throughput, packet loss, server frame stability, and join/leave behavior.
+
+**Pass condition:** No sustained resource exhaustion or unacceptable network instability at the declared capacity.
+
+## Stage 6 — Restart and persistence
 
 - [ ] Stop the server cleanly.
 - [ ] Restart it on the selected host.
-- [ ] Confirm config, maps, and required data persist.
-- [ ] Confirm the public endpoint behavior after restart.
+- [ ] Confirm configuration, maps, and server data persist.
+- [ ] Confirm public endpoint behavior after restart.
 - [ ] Record downtime and any address changes.
 
 ## GitHub Actions boundary
 
-Actions is used for repository validation and bounded CI tasks. A hosted runner is temporary, with a finite job duration and no guarantee of inbound UDP reachability. Restarting separate jobs is not a dependable 24/7 hosting design and must not be used to evade platform limits.
+The manual ReHLDS smoke workflow binds to loopback and terminates automatically. Hosted runners are temporary and do not guarantee public UDP reachability. Separate CI jobs must not be chained to evade platform limits or used as a permanent game-server hosting scheme.
 
 ## Current blockers
 
-- A permitted host for the HLDS process has not yet been selected.
-- Public UDP routing has not yet been tested.
-- Tunnel provider and credentials have not yet been configured.
-- No performance claim for 20–32 players has been verified.
+- A permanent or otherwise permitted host for the public server has not been selected.
+- Public UDP routing has not been tested.
+- Playit tunnel has not been configured.
+- No 20–32 player performance result has been verified.
+- The exact modified-client builds/protocols to support have not yet been tested.

@@ -1,0 +1,231 @@
+name: CS 1.6 public session (GitHub-hosted)
+
+on:
+  # Start a fresh bounded session every six hours.
+  # GitHub may delay or drop scheduled events during periods of high load.
+  schedule:
+    - cron: "17 0,6,12,18 * * *"
+  workflow_dispatch:
+    inputs:
+      maxplayers:
+        description: Server slot target for this session
+        required: true
+        type: choice
+        options:
+          - "20"
+          - "32"
+        default: "20"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cs16-public-session
+  cancel-in-progress: false
+
+jobs:
+  public-session:
+    name: Run ReHLDS and Playit tunnel for a bounded session
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      MAXPLAYERS: ${{ github.event.inputs.maxplayers || '20' }}
+
+    steps:
+      - name: Check out server configuration
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Validate Playit secret is configured
+        env:
+          PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
+            echo "Missing repository Actions secret PLAYIT_SECRET_KEY." >&2
+            echo "Create a Playit Docker agent key and add it under Settings > Secrets and variables > Actions." >&2
+            exit 1
+          fi
+
+      - name: Install Linux and GoldSrc 32-bit dependencies
+        run: |
+          set -euo pipefail
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates gpg unzip file openssl \
+            lib32gcc-s1 lib32stdc++6 lib32z1 libc6:i386 libstdc++6:i386
+
+      - name: Download SteamCMD
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/steamcmd"
+          curl --fail --location --retry 3 \
+            https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            -o "$RUNNER_TEMP/steamcmd/steamcmd_linux.tar.gz"
+          tar -xzf "$RUNNER_TEMP/steamcmd/steamcmd_linux.tar.gz" -C "$RUNNER_TEMP/steamcmd"
+          test -x "$RUNNER_TEMP/steamcmd/steamcmd.sh"
+
+      - name: Install CS 1.6 base server files (App 90)
+        run: |
+          set -euo pipefail
+          bash scripts/install-base-hlds.sh \
+            "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
+            "$RUNNER_TEMP/hlds"
+
+      - name: Install Steamworks runtime (App 1007)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/steamworks-redist"
+          "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
+            +force_install_dir "$RUNNER_TEMP/steamworks-redist" \
+            +login anonymous \
+            +app_update 1007 validate \
+            +quit
+
+      - name: Link 32-bit Steam client runtime
+        run: |
+          set -euo pipefail
+          mapfile -t CANDIDATES < <(find "$RUNNER_TEMP/steamworks-redist" "$RUNNER_TEMP/steamcmd" "$RUNNER_TEMP/hlds" "$HOME/.steam" \
+            -type f -name steamclient.so -print 2>/dev/null || true)
+
+          STEAMCLIENT=""
+          for candidate in "${CANDIDATES[@]}"; do
+            DESCRIPTION="$(file -b "$candidate" || true)"
+            if [[ "$DESCRIPTION" == *"ELF 32-bit"* ]]; then
+              STEAMCLIENT="$candidate"
+              break
+            fi
+          done
+
+          if [[ -z "$STEAMCLIENT" ]]; then
+            echo "ERROR: No 32-bit steamclient.so found." >&2
+            printf '%s\n' "${CANDIDATES[@]}"
+            exit 1
+          fi
+
+          mkdir -p "$HOME/.steam/sdk32"
+          ln -sfn "$STEAMCLIENT" "$HOME/.steam/sdk32/steamclient.so"
+          ldd "$HOME/.steam/sdk32/steamclient.so" | tee "$RUNNER_TEMP/steamclient-dependencies.txt"
+          if grep -q "not found" "$RUNNER_TEMP/steamclient-dependencies.txt"; then
+            echo "ERROR: Steam client library dependencies are missing." >&2
+            exit 1
+          fi
+
+      - name: Install signed ReHLDS
+        env:
+          REHLDS_VERSION: 3.15.0.896
+        run: |
+          set -euo pipefail
+          bash scripts/install-rehlds.sh "$RUNNER_TEMP/hlds"
+          grep -Fx "version=3.15.0.896" "$RUNNER_TEMP/hlds/rehlds-build.txt"
+          grep -Fx "signature=VALID" "$RUNNER_TEMP/hlds/rehlds-build.txt"
+
+      - name: Install Metamod-R and ReUnion
+        env:
+          METAMOD_VERSION: 1.3.0.149
+          REUNION_VERSION: 0.2.0.25
+        run: |
+          set -euo pipefail
+          bash scripts/install-reunion.sh "$RUNNER_TEMP/hlds"
+
+      - name: Configure server for public session
+        run: |
+          set -euo pipefail
+          sed -E 's/^sv_lan[[:space:]]+1$/sv_lan 0/' \
+            config/server.cfg.example > "$RUNNER_TEMP/hlds/cstrike/server.cfg"
+          # Check the public setting and queue the plugin status command after map load.
+          grep -Eq '^[[:space:]]*sv_lan[[:space:]]+0([[:space:]]|$)' "$RUNNER_TEMP/hlds/cstrike/server.cfg"
+          printf '\nmeta list\n' >> "$RUNNER_TEMP/hlds/cstrike/server.cfg"
+          RCON_PASSWORD="$(openssl rand -hex 24)"
+          printf '\nrcon_password "%s"\n' "$RCON_PASSWORD" >> "$RUNNER_TEMP/hlds/cstrike/server.cfg"
+          unset RCON_PASSWORD
+          chmod 0600 "$RUNNER_TEMP/hlds/cstrike/server.cfg"
+
+      - name: Start ReHLDS and attach Playit UDP agent
+        env:
+          PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/hlds"
+          export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
+          LOG_FILE="$RUNNER_TEMP/rehlds-session.log"
+
+          echo "Starting ReHLDS on loopback UDP 27015 with $MAXPLAYERS slots..."
+          timeout --signal=TERM --kill-after=30s 340m \
+            ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +sv_lan 0 \
+            > "$LOG_FILE" 2>&1 &
+          SERVER_PID=$!
+
+          READY=0
+          for attempt in $(seq 1 90); do
+            if grep -Eiq 'World triggered "Round_Start"' "$LOG_FILE"; then
+              READY=1
+              break
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "ERROR: ReHLDS exited before reaching Round_Start." >&2
+              cat "$LOG_FILE"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if [[ "$READY" -ne 1 ]]; then
+            echo "ERROR: ReHLDS did not reach the first round within 180 seconds." >&2
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          grep -Eiq 'Reunion[[:space:]]+RUN' "$LOG_FILE" || {
+            echo "ERROR: ReUnion was not reported as RUN." >&2
+            cat "$LOG_FILE"
+            exit 1
+          }
+
+          echo "ReHLDS and ReUnion are running. Starting Playit UDP agent..."
+          docker run -d --name playit --network host \
+            -e SECRET_KEY="$PLAYIT_SECRET_KEY" \
+            ghcr.io/playit-cloud/playit-agent:latest
+
+          sleep 20
+          if [[ "$(docker inspect -f '{{.State.Running}}' playit)" != "true" ]]; then
+            echo "ERROR: Playit agent container did not stay running." >&2
+            docker logs --tail 100 playit || true
+            exit 1
+          fi
+          docker logs --tail 60 playit || true
+
+          echo "Public session is active. Scheduled session length: up to 340 minutes."
+          set +e
+          wait "$SERVER_PID"
+          STATUS=$?
+          set -e
+
+          if [[ "$STATUS" -ne 124 ]]; then
+            echo "ERROR: ReHLDS session ended unexpectedly (status $STATUS)." >&2
+            tail -n 200 "$LOG_FILE"
+            exit 1
+          fi
+
+          echo "Session reached its planned time limit; GitHub Actions will release this runner."
+
+      - name: Capture session logs and stop Playit agent
+        if: always()
+        run: |
+          set +e
+          docker logs --tail 200 playit > "$RUNNER_TEMP/playit-agent.log" 2>&1
+          docker stop playit >/dev/null 2>&1
+          true
+
+      - name: Upload server and tunnel logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs16-session-logs
+          path: |
+            ${{ runner.temp }}/rehlds-session.log
+            ${{ runner.temp }}/playit-agent.log
+          if-no-files-found: ignore
+          retention-days: 3

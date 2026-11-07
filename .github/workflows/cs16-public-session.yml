@@ -188,7 +188,7 @@ jobs:
           echo "ReHLDS and ReUnion are running. Starting Playit UDP agent..."
           docker run -d --name playit --network host \
             -e SECRET_KEY="$PLAYIT_SECRET_KEY" \
-            ghcr.io/playit-cloud/playit-agent:latest
+            ghcr.io/playit-cloud/playit-agent:1.0
 
           sleep 20
           if [[ "$(docker inspect -f '{{.State.Running}}' playit)" != "true" ]]; then

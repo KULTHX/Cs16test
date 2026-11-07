@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151d">
+  <meta name="description" content="Live status and connection details for the CS 1.6 ReHLDS community server.">
+  <title>CS 1.6 ReHLDS | Server Status</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="CS 1.6 ReHLDS home">
+      <span class="brand-mark">CS</span>
+      <span><strong>CS 1.6</strong><small>COMMUNITY SERVER</small></span>
+    </a>
+    <span class="topbar-tag"><span class="pulse"></span> SERVER CONTROL</span>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow"><span class="eyebrow-line"></span> GOLDSource · REHLDS</div>
+      <h1>READY UP<span>.</span></h1>
+      <p class="hero-copy">A classic battlefield is being prepared. Check the server status and connection details here.</p>
+      <div class="hero-meta">
+        <span class="meta-chip">de_dust2</span>
+        <span class="meta-chip">32 SLOT TARGET</span>
+        <span class="meta-chip">UDP</span>
+      </div>
+    </section>
+
+    <section class="status-panel" aria-labelledby="status-heading">
+      <div class="panel-heading">
+        <div>
+          <div class="section-kicker">01 / SERVER STATUS</div>
+          <h2 id="status-heading">Connection overview</h2>
+        </div>
+        <span id="status-pill" class="status-pill pending"><span class="status-dot"></span><span id="status-label">PREPARING</span></span>
+      </div>
+
+      <div class="status-grid">
+        <article class="metric-card primary-metric">
+          <span class="metric-label">PLAYERS ONLINE</span>
+          <div class="metric-value" id="players-value">—<span class="metric-denom"> / 20</span></div>
+          <div class="metric-foot" id="players-foot">Waiting for public host</div>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">CURRENT MAP</span>
+          <div class="metric-value compact" id="map-value">de_dust2</div>
+          <div class="metric-foot">Classic defusal</div>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">GAME ENGINE</span>
+          <div class="metric-value compact">ReHLDS</div>
+          <div class="metric-foot">3.15.0.896</div>
+        </article>
+      </div>
+
+      <div class="connect-row">
+        <div class="connect-copy">
+          <span class="metric-label">PUBLIC CONNECT ADDRESS</span>
+          <strong id="address-value">Not assigned yet</strong>
+          <small id="address-hint">The address will appear after the host and UDP tunnel are configured.</small>
+        </div>
+        <button id="copy-connect" class="copy-button" type="button" disabled>Copy connect</button>
+      </div>
+      <div id="notice" class="notice" role="status">The local ReHLDS smoke test passed. Public hosting and external player connections have not been verified yet.</div>
+      <div class="last-check">LAST STATUS UPDATE <span id="last-check">Not available</span></div>
+    </section>
+
+    <section class="build-grid">
+      <article class="build-card">
+        <div class="section-kicker">02 / VERIFIED COMPONENTS</div>
+        <h2>Engine stack</h2>
+        <ul class="component-list">
+          <li><span>ReHLDS</span><b class="ok">VERIFIED</b><small>3.15.0.896 · local smoke test</small></li>
+          <li><span>Metamod-R</span><b class="ok">LOADED</b><small>1.3.0.149</small></li>
+          <li><span>ReUnion</span><b class="ok">RUN</b><small>0.2.0.25 · protocol 47/48 plugin</small></li>
+        </ul>
+      </article>
+      <article class="build-card next-card">
+        <div class="section-kicker">03 / NEXT DEPLOYMENT GATE</div>
+        <h2>Public launch checklist</h2>
+        <ul class="check-list">
+          <li><span class="check-pending">01</span> Always-on Linux host</li>
+          <li><span class="check-pending">02</span> Playit UDP tunnel</li>
+          <li><span class="check-pending">03</span> External client join test</li>
+          <li><span class="check-pending">04</span> 20-player capacity test</li>
+        </ul>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <span>BUILT FOR THE CLASSIC CS 1.6 COMMUNITY</span>
+      <a href="https://github.com/KULTHX/Cs16test" target="_blank" rel="noreferrer">PROJECT SOURCE ↗</a>
+    </footer>
+  </main>
+</body>
+</html>

@@ -127,8 +127,10 @@ jobs:
             exit 1
           fi
 
-          if grep -Eiq 'FATAL ERROR|Segmentation fault|SteamAPI_Init\(\) failed' "$LOG_FILE"; then
-            echo "ERROR: The server log contains a fatal startup or Steam API error." >&2
+          # SteamAPI_Init() can emit this non-fatal diagnostic in headless
+          # dedicated-server environments. Treat actual engine crashes as fatal.
+          if grep -Eiq 'FATAL ERROR|Segmentation fault|Unable to initialize Steam' "$LOG_FILE"; then
+            echo "ERROR: The server log contains a fatal startup or engine error." >&2
             exit 1
           fi
 
@@ -140,8 +142,10 @@ jobs:
             || { echo "ERROR: The game server did not report a bound address." >&2; exit 1; }
           grep -Eiq 'Server logging data to file' "$LOG_FILE" \
             || { echo "ERROR: The game server did not initialize server logging." >&2; exit 1; }
+          grep -Eiq 'World triggered "Round_Start"' "$LOG_FILE" \
+            || { echo "ERROR: The game did not reach the first round." >&2; exit 1; }
 
-          echo "ReHLDS verified and the local server remained alive for the smoke-test window."
+          echo "ReHLDS verified; the GoldSrc server bound locally, loaded the map, and reached Round_Start."
 
       - name: Upload smoke-test log
         if: always()

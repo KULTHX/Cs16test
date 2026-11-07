@@ -1,6 +1,6 @@
 # ReHLDS setup and compatibility
 
-## Why this project uses ReHLDS
+## Engine choice
 
 ReHLDS replaces the GoldSrc dedicated-server engine binary. It does not replace Counter-Strike game content. The supported install starts from the pre-anniversary HLDS server files downloaded with SteamCMD, then replaces `engine_i486.so` with the signed ReHLDS binary.
 
@@ -13,16 +13,9 @@ Official references:
 
 ## Base installation
 
-On a supported Linux x86_64 host:
+GitHub Actions installs the base files using SteamCMD app 90 on the `steam_legacy` branch, then installs the Steamworks runtime app 1007 for the 32-bit Steam client library.
 
-```bash
-bash scripts/install-base-hlds.sh /path/to/steamcmd.sh /opt/cs16
-REHLDS_VERSION=3.15.0.896 bash scripts/install-rehlds.sh /opt/cs16
-```
-
-The base installer uses SteamCMD app 90 with the `steam_legacy` branch. The ReHLDS installer verifies the release signature, backs up the previous engine, and installs the Linux 32-bit engine binary.
-
-ReHLDS requires a CPU with SSE, SSE2, and SSE3.
+The ReHLDS installer verifies the release signature, backs up the original engine, and installs the Linux 32-bit ReHLDS engine. ReHLDS requires a CPU with SSE, SSE2, and SSE3.
 
 ## ReUnion compatibility for protocols 47/48
 
@@ -32,12 +25,6 @@ This repository pins:
 - Metamod-R **1.3.0.149**
 - ReUnion **0.2.0.25**
 
-Install both after ReHLDS:
-
-```bash
-bash scripts/install-reunion.sh /opt/cs16
-```
-
 The installer:
 - Places `metamod_i386.so` in `cstrike/addons/metamod`.
 - Registers Metamod-R in `liblist.gam`.
@@ -46,36 +33,22 @@ The installer:
 - Sets `cid_NoSteam47 = 3` and `cid_NoSteam48 = 3` for clients without a unique auth ID.
 - Creates a random `SteamIdHashSalt` if none exists.
 
-Type 3 generates a Steam-style ID from the connecting IP. This supports clients without a unique ID, but multiple users behind the same NAT may share an identity. The installer sets `IDClientsLimit = 0` so those users are not blocked by the same-ID connection limit. This also means identity-based bans may affect several users behind one public IP. Keep the generated salt stable; changing it changes the generated IDs.
+Type 3 generates a Steam-style ID from the connecting IP. Multiple users behind the same NAT may share an identity. The installer sets `IDClientsLimit = 0` so those users are not blocked by the same-ID connection limit. This has implications for identity-based bans and moderation. Keep the generated salt stable within a session/data set.
 
-After startup, verify the plugin list with `meta list`. ReUnion should show status `RUN`. This was confirmed in the GitHub Actions smoke test on 2026-11-07; the workflow loads `meta list` from `cstrike/server.cfg` after map initialization because issuing it as a startup argument runs too early.
+After startup, verify the plugin list with `meta list`. ReUnion should show status `RUN`. This was confirmed in the GitHub Actions smoke test on 2026-11-07; the command is queued in `server.cfg` so it runs after map initialization.
 
-Official references:
-- ReUnion: https://github.com/rehlds/ReUnion
-- ReUnion installation: https://rehlds.dev/docs/reunion/install/
-- ReUnion settings: https://rehlds.dev/docs/reunion/settings/
-- Metamod-R installation: https://rehlds.dev/docs/metamod-r/install/
+## Start a public GitHub-hosted session
 
-## Local startup
+The complete temporary-runner setup is automated by:
 
-For a manual local run (20 slots):
-
-```bash
-cd /opt/cs16
-./hlds_run -norestart -game cstrike -console -port 27015 +maxplayers 20 +map de_dust2
+```text
+.github/workflows/cs16-public-session.yml
 ```
 
-The server slot count is a launch argument, not a `server.cfg` cvar. A local process-start test does not prove external UDP connectivity.
+It installs the required files, starts ReHLDS on loopback UDP 27015, and runs the Playit Docker agent using the encrypted `PLAYIT_SECRET_KEY` Actions secret. Do not commit this key.
 
-## Persistent service
+The workflow is scheduled four times per day. Each job is limited to less than six hours, and GitHub may delay or drop scheduled starts. Players disconnect during each restart and setup interval. See [GITHUB-ACTIONS-SESSIONS.md](GITHUB-ACTIONS-SESSIONS.md) for the setup and limitations.
 
-For a long-running host, use the included systemd service rather than GitHub Actions:
+## Capacity
 
-```bash
-sudo bash scripts/provision-ubuntu-host.sh
-sudo systemctl status cs16-rehlds
-sudo journalctl -u cs16-rehlds -f
-```
-
-The service starts at boot and restarts the server process on exit. GitHub Actions runners are temporary and remain limited to bounded validation/smoke tests.
-
+The session workflow defaults to 20 slots. The 32-slot option should only be selected after a real 20-player test. Slot configuration is not a performance guarantee.

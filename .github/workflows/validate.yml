@@ -23,7 +23,7 @@ jobs:
         run: |
           bash -n scripts/validate-config.sh
           bash -n scripts/install-base-hlds.sh
-          bash -n scripts/install-rehlds.sh
+          bash -n scripts/install-rehlds.sh\n          bash -n scripts/install-reunion.sh\n          bash -n scripts/install-playit-agent.sh\n          bash -n scripts/provision-ubuntu-host.sh\n          bash -n deploy/start-cs16-rehlds.sh
 
       - name: Validate example server configuration
         run: bash scripts/validate-config.sh config/server.cfg.example

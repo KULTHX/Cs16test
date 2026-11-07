@@ -22,7 +22,7 @@ Create these repository secrets under **Settings → Secrets and variables → A
 | --- | --- |
 | `CS16_SSH_HOST` | Public IP or DNS name of your Linux host |
 | `CS16_SSH_USER` | SSH login username |
-| `CS16_SSH_PORT` | SSH port, usually `22` |
+| `CS16_SSH_PORT` | Optional SSH port override; defaults to `22` when omitted |
 | `CS16_SSH_PRIVATE_KEY` | Private SSH key for that deployment user |
 | `CS16_SSH_KNOWN_HOSTS` | The host's verified SSH known_hosts line |
 

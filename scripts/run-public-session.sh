@@ -297,7 +297,7 @@ start_bore() {
       BORE_PORT="${BASH_REMATCH[1]}"
       echo "BORE SSH TUNNEL READY"
       echo "Public address: $BORE_ADDRESS"
-      echo "SSH command: ssh -p $BORE_PORT runner@bore.pub"
+      echo "SSH command: ssh -o IdentitiesOnly=yes -i ~/.ssh/cs16_friend -p $BORE_PORT runner@bore.pub"
       echo "SSH host key fingerprint: $SSH_HOST_FINGERPRINT"
       return 0
     fi

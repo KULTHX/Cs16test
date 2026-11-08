@@ -65,10 +65,10 @@ The runner is temporary and has GitHub's bounded job lifetime. The authorized cl
 - Connect from the friend's computer using the private key that matches the registered public key:
 
 ```bash
-ssh -i PATH_TO_FRIEND_PRIVATE_KEY -p PORT runner@bore.pub
+ssh -i ~/.ssh/cs16_friend -p PORT runner@bore.pub
 ```
 
-Replace `PATH_TO_FRIEND_PRIVATE_KEY` with the actual private-key path and `PORT` with the port printed after `BORE SSH TUNNEL READY`. On the first connection, verify the SSH host fingerprint against the SHA-256 fingerprint printed in the same GitHub Actions run before accepting it.
+Replace `PORT` with the port printed after `BORE SSH TUNNEL READY`. On the first connection, verify the SSH host fingerprint against the SHA-256 fingerprint printed in the same GitHub Actions run before accepting it.
 
 ### Security and limitations
 

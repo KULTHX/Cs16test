@@ -31,8 +31,15 @@ async function github(path, token, options = {}) {
     const text = (await response.text()).slice(0, 350);
     throw new Error(`GitHub API ${response.status}: ${text}`);
   }
-  if (response.status === 204) return null;
-  return response.json();
+  // GitHub Actions cancellation commonly returns 202 with an empty body.
+  // Do not treat that accepted cancellation as a JSON parsing failure.
+  const responseText = await response.text();
+  if (!responseText.trim()) return null;
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(`GitHub API returned invalid JSON: ${responseText.slice(0, 200)}`);
+  }
 }
 
 async function getActiveRuns(token) {
@@ -111,13 +118,18 @@ export default async function handler(request, response) {
         github(`actions/runs/${run.id}/cancel`, token, { method: "POST" })
       ));
       const canceled = results.filter(item => item.status === "fulfilled").length;
-      if (!canceled) throw new Error("GitHub did not accept the cancellation request.");
+      const failures = results
+        .filter(item => item.status === "rejected")
+        .map(item => item.reason?.message || "Unknown GitHub cancellation error");
+      if (!canceled) {
+        throw new Error(failures.join("; ") || "GitHub did not accept the cancellation request.");
+      }
 
       return response.status(202).json({
         ok: true,
         action,
         canceled,
-        message: `Cancellation requested for ${canceled} active session(s). The external watchdog should relaunch the server on its next check.`
+        message: `GitHub accepted cancellation for ${canceled} active session(s). The watchdog will keep monitoring and respect this manual stop until you press Start.`
       });
     }
 

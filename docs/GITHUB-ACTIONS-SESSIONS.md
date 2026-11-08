@@ -11,7 +11,7 @@ It does **not** use Oracle, a VPS, a home computer, or another permanent host.
 
 ## Always-on watchdog via Vercel Schedules
 
-The dashboard project runs a private Vercel Schedules function every 15 minutes. It queries the status of `.github/workflows/cs16-public-session.yml` using the GitHub Actions API:
+The dashboard project runs a private Vercel Schedules function every 10 minutes. It queries the status of `.github/workflows/cs16-public-session.yml` using the GitHub Actions API:
 
 - If a run is queued or in progress, the watchdog leaves it alone.
 - If no run is active, it calls GitHub's workflow-dispatch API to start a fresh 20-slot session.
@@ -19,7 +19,7 @@ The dashboard project runs a private Vercel Schedules function every 15 minutes.
 
 The heartbeat is not a fixed schedule for starting the game server. It is a monitoring interval; a new server session is requested only when no active GitHub Actions run is found.
 
-The Vercel Hobby team currently includes 5,000 Schedules executions per month. A 10-minute interval uses about 2,880 executions in a 30-day month. Schedule executions are not a continuously running process, so recovery detection can take up to around 15 minutes, plus the schedule's permitted jitter, plus runner startup time.
+The Vercel Hobby team currently includes 5,000 Schedules executions per month. A 10-minute interval uses about 4,320 executions in a 30-day month. Schedule executions are not a continuously running process, so recovery detection can take up to around 11 minutes, including the 1-minute schedule jitter, plus runner startup time.
 
 The GitHub runner remains subject to the six-hour job limit. The in-session watchdog restarts ReHLDS and Playit child processes while that runner is alive. Vercel Schedules then detects when the GitHub workflow has ended and dispatches a new session. This provides automatic recovery but cannot promise zero downtime.
 

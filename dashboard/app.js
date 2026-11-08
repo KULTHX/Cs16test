@@ -8,8 +8,13 @@ const addressHint = document.querySelector("#address-hint");
 const notice = document.querySelector("#notice");
 const lastCheck = document.querySelector("#last-check");
 const copyButton = document.querySelector("#copy-connect");
+const startButton = document.querySelector("#start-server");
+const stopButton = document.querySelector("#stop-server");
+const controlKeyInput = document.querySelector("#control-key");
+const controlResult = document.querySelector("#control-result");
 
 let connectCommand = "";
+let requestInFlight = false;
 
 function setStatus(state) {
   statusPill.classList.remove("online", "offline", "pending");
@@ -18,41 +23,47 @@ function setStatus(state) {
 
 async function refreshStatus() {
   try {
-    const response = await fetch("./status.json", { cache: "no-store" });
-    if (!response.ok) throw new Error("Status data unavailable");
+    const response = await fetch("/api/status", { cache: "no-store" });
+    if (!response.ok) throw new Error("Live status endpoint unavailable");
     const data = await response.json();
 
     const isOnline = data.status === "online";
-    const state = isOnline ? "online" : (data.status === "offline" ? "offline" : "pending");
+    const isStarting = data.status === "starting";
+    const state = isOnline ? "online" : (isStarting ? "pending" : "offline");
     setStatus(state);
-    statusLabel.textContent = isOnline ? "ONLINE" : (state === "offline" ? "OFFLINE" : "PREPARING");
+    statusLabel.textContent = isOnline ? "ONLINE" : (isStarting ? "STARTING" : "OFFLINE");
 
     playersValue.innerHTML = Number.isInteger(data.players)
       ? `${data.players}<span class="metric-denom"> / ${data.maxPlayers ?? 20}</span>`
       : `—<span class="metric-denom"> / ${data.maxPlayers ?? 20}</span>`;
-    playersFoot.textContent = isOnline ? "Live server status" : "No public host verified";
-    mapValue.textContent = data.map || "de_dust2";
+    playersFoot.textContent = isOnline
+      ? "Live GoldSrc UDP query"
+      : (isStarting ? "Runner is active; waiting for server response" : "No live server response");
+
+    mapValue.textContent = data.map || "—";
 
     if (data.publicAddress && data.publicPort) {
       addressValue.textContent = `${data.publicAddress}:${data.publicPort}`;
-      addressHint.textContent = "Use this address in the CS 1.6 console.";
+      addressHint.textContent = isOnline
+        ? "Server is responding. Use this address in CS 1.6."
+        : "Public endpoint retained; the game server is not responding right now.";
       connectCommand = `connect ${data.publicAddress}:${data.publicPort}`;
       copyButton.disabled = false;
     } else {
-      addressValue.textContent = "Not assigned yet";
-      addressHint.textContent = "The address will appear after the host and UDP tunnel are configured.";
+      addressValue.textContent = "Not assigned";
+      addressHint.textContent = "Waiting for the Playit public endpoint.";
       connectCommand = "";
       copyButton.disabled = true;
     }
 
-    notice.textContent = data.message || "Server status loaded.";
-    lastCheck.textContent = data.updatedAt
-      ? new Date(data.updatedAt).toLocaleString()
-      : "Not available";
+    notice.textContent = data.message || "Live status loaded.";
+    lastCheck.textContent = data.updatedAt ? new Date(data.updatedAt).toLocaleString() : "Not available";
   } catch (error) {
     setStatus("pending");
     statusLabel.textContent = "STATUS UNKNOWN";
-    notice.textContent = "The status file could not be loaded. The game server may still be running; this page has no live result.";
+    playersFoot.textContent = "Live query unavailable";
+    notice.textContent = "Could not query the live server. This does not by itself prove the GitHub runner is stopped.";
+    lastCheck.textContent = new Date().toLocaleString();
   }
 }
 
@@ -67,4 +78,50 @@ copyButton.addEventListener("click", async () => {
   }
 });
 
+async function sendControl(action) {
+  if (requestInFlight) return;
+  const controlKey = controlKeyInput.value.trim();
+  if (!controlKey) {
+    controlResult.textContent = "Enter the admin control key first.";
+    controlKeyInput.focus();
+    return;
+  }
+
+  if (action === "stop" && !window.confirm(
+    "Stop the current CS 1.6 session? The external watchdog should relaunch it at its next check."
+  )) return;
+
+  requestInFlight = true;
+  startButton.disabled = true;
+  stopButton.disabled = true;
+  controlResult.textContent = action === "start" ? "Requesting a server session..." : "Requesting session cancellation...";
+
+  try {
+    const response = await fetch("/api/control", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${controlKey}`
+      },
+      body: JSON.stringify({ action })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.message || `Control request failed (${response.status})`);
+    }
+    controlResult.textContent = result.message || (action === "start" ? "Start request accepted." : "Stop request accepted.");
+    await refreshStatus();
+  } catch (error) {
+    controlResult.textContent = error.message || "Could not perform this action.";
+  } finally {
+    requestInFlight = false;
+    startButton.disabled = false;
+    stopButton.disabled = false;
+  }
+}
+
+startButton.addEventListener("click", () => sendControl("start"));
+stopButton.addEventListener("click", () => sendControl("stop"));
+
 refreshStatus();
+window.setInterval(refreshStatus, 30000);

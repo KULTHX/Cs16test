@@ -46,22 +46,21 @@ The static Vercel function is private and can only be invoked by the Vercel Sche
 
 Official Playit Docker instructions: https://github.com/playit-cloud/playit-agent#docker
 
-## Optional private SSH terminal from Android (Termux)
+## Private SSH terminal access from Android (Termux)
 
-This optional feature lets your phone connect to the **currently running GitHub Actions runner** using ordinary OpenSSH. Tailscale provides the private network; SSH listens only on the runner's Tailscale address and is not exposed on the public Internet. The runner is still temporary: the SSH key and hostname stay the same, but access is available only while a session is running. Files and packages installed on that runner disappear when GitHub replaces it.
+This optional feature allows an invited friend to use a normal SSH terminal on the **currently active GitHub Actions runner**. Tailscale provides the private network, and SSH listens only on the runner's Tailscale IP. No public SSH port is opened.
 
-### 1. Install Tailscale on the phone
+Important: the runner is temporary. The SSH client key and server host identity can remain stable, and the same hostname is reused, but access exists only while a GitHub Actions session is active. Files and packages installed directly on the runner are lost when that runner is replaced. GitHub-hosted runners have a bounded job lifetime.
 
-Install the official Tailscale Android app and sign in to the same Tailscale account used for this project. Keep Tailscale connected when using Termux.
+### A. Configure the private network once
 
-### 2. Create a restricted Tailscale tag and policy
-
-In the Tailscale admin console, open **Access controls** and merge the following entries into the existing policy file. Do not delete or replace unrelated policy rules:
+1. Create a free Tailscale account and install the official Tailscale app on your phone.
+2. Open the Tailscale admin console → **Access controls**. Merge these entries into your existing policy file. Do not erase other rules:
 
 ```json
 {
   "tagOwners": {
-    "tag:cs16-runner": ["autogroup:admin"]
+    "tag:cs16-runner": ["autogroup:admin", "autogroup:owner"]
   },
   "grants": [
     {
@@ -73,60 +72,57 @@ In the Tailscale admin console, open **Access controls** and merge the following
 }
 ```
 
-This permits members of your tailnet to reach only TCP port 2222 on the temporary runner.
+This limits access to TCP port 2222 on the tagged runner. Invited tailnet members can use it; do not invite anyone you do not trust with shell access.
 
-### 3. Create a Tailscale OAuth client
+3. In Tailscale admin console → **Keys** → **Generate auth key**, create a key with:
+   - Reusable: **on**
+   - Ephemeral: **on**
+   - Tag: **tag:cs16-runner**
+   - Pre-approved: **on**, if device approval is enabled
+   - Expiry: choose the longest allowed period (up to 90 days); create a replacement when it expires.
 
-In the Tailscale admin console, open **Trust credentials → Credentials → OAuth** and create a client with:
-- **Devices / Core / Write**
-- **Keys / Auth Keys / Write**
-- Allowed tag: **tag:cs16-runner**
+4. In GitHub **KULTHX/Cs16test → Settings → Secrets and variables → Actions**, create repository secret:
+   - `TAILSCALE_AUTHKEY`: the auth key you just generated.
 
-Keep the client ID and secret private. In GitHub, open **KULTHX/Cs16test → Settings → Secrets and variables → Actions**, then add:
-- `TS_OAUTH_CLIENT_ID`: the OAuth client ID
-- `TS_OAUTH_SECRET`: the OAuth client secret
+Keep this key private. Do not commit it or send it in chat. Reusable auth keys are powerful credentials; revoke them in Tailscale if exposed.
 
-The GitHub Action creates a short-lived, tagged Tailscale node for each session and cleans it up when the job ends.
+### B. Create the stable SSH server identity once
 
-### 4. Generate the two SSH key pairs in Termux
-
-In Termux, install OpenSSH and create the client key (used by your phone) and a separate stable host key (used by the temporary runner):
+On the owner phone in Termux:
 
 ```bash
 pkg update -y
 pkg install -y openssh
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
-ssh-keygen -t ed25519 -a 64 -f ~/.ssh/cs16_terminal -C "termux-cs16"
-ssh-keygen -t ed25519 -a 64 -N "" -f ~/.ssh/ssh_host_ed25519_key -C "cs16-runner-host"
+ssh-keygen -t ed25519 -a 64 -N "" -f ~/.ssh/cs16_server_host -C "cs16-runner-host"
 ```
 
-Use a passphrase for the phone's client key. The host key uses no passphrase so the runner can start sshd unattended. Do not share `~/.ssh/cs16_terminal` with anyone.
+Add the contents of this **private host key** to GitHub Actions repository secrets as:
+- `SSH_HOST_ED25519_PRIVATE_KEY`: the complete contents of `~/.ssh/cs16_server_host`.
 
-In GitHub **Settings → Secrets and variables → Actions**, add these two repository secrets:
-- `SSH_AUTHORIZED_KEYS`: paste the output of `cat ~/.ssh/cs16_terminal.pub`
-- `SSH_HOST_ED25519_PRIVATE_KEY`: paste the complete output of `cat ~/.ssh/ssh_host_ed25519_key`
+Do not send this private host key to your friend. The repository already contains the friend's **public client key** at `config/ssh/authorized_keys`; the private client key stays with your friend.
 
-Never paste either private key into chat or commit it to the repository.
+The same server host key is loaded into each new runner, so your friend should accept the host identity on the first SSH connection and should not get a host-key change warning on later sessions.
 
-### 5. Pin the server identity and connect
+### C. Invite the friend and connect
 
-In Termux, add the stable host public key to `known_hosts`:
+1. In Tailscale admin console → **Users**, invite your friend's email to the tailnet. Your friend installs the Tailscale app, signs in with their own account, and accepts the invitation.
+2. The friend opens Termux and runs:
 
 ```bash
-ssh-keygen -y -f ~/.ssh/ssh_host_ed25519_key | awk '{print "[cs16-runner]:2222 " $1 " " $2}' >> ~/.ssh/known_hosts
-chmod 600 ~/.ssh/known_hosts
+pkg update -y
+pkg install -y openssh
+ssh -i ~/.ssh/cs16_friend -p 2222 runner@cs16-runner
 ```
 
-Then connect with the same command whenever the runner is active:
+If the private key has different permissions, run `chmod 600 ~/.ssh/cs16_friend` first. The first connection asks to trust the SSH host fingerprint; accept only when it matches the fingerprint you provide from the owner's host public key. Tailscale MagicDNS must be enabled for the short hostname `cs16-runner` to resolve.
 
-```bash
-ssh -i ~/.ssh/cs16_terminal -p 2222 runner@cs16-runner
-```
+### What the friend can do
 
-The hostname `cs16-runner` is provided by Tailscale MagicDNS. If the phone cannot resolve it, make sure the Tailscale Android app is connected and MagicDNS is enabled for the tailnet.
+The friend logs in as the temporary Linux user `runner`, which can use the runner's normal `sudo` permissions to install packages and edit files in that active session. It is not a persistent VPS: copy important changes back to the Git repository or another persistent store before the GitHub job ends.
 
-Inside the session, the runner account can use the GitHub-hosted runner's normal `sudo` permissions for package installation. This is a temporary workspace, not persistent storage. Save anything important outside the runner before the session ends.
+Tailscale's free Personal plan currently allows up to six users. A friend must be invited as a separate user; never share one Tailscale login between people.
 
 ## Start / monitor
 

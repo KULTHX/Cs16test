@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 360
     env:
       MAXPLAYERS: ${{ github.event.inputs.maxplayers || '20' }}
-      SSH_TAILSCALE_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' && secrets.TS_OAUTH_SECRET != '' }}
+      SSH_TAILSCALE_ENABLED: ${{ secrets.TAILSCALE_AUTHKEY != '' }}
 
     steps:
       - name: Check out server configuration
@@ -150,16 +150,13 @@ jobs:
         if: ${{ env.SSH_TAILSCALE_ENABLED == 'true' }}
         uses: tailscale/github-action@v4
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:cs16-runner
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
           hostname: cs16-runner
           version: latest
 
       - name: Run self-healing ReHLDS, Playit, and SSH session
         env:
           PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
-          SSH_AUTHORIZED_KEYS: ${{ secrets.SSH_AUTHORIZED_KEYS }}
           SSH_HOST_ED25519_PRIVATE_KEY: ${{ secrets.SSH_HOST_ED25519_PRIVATE_KEY }}
         run: |
           set -euo pipefail

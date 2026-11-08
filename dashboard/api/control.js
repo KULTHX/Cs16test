@@ -174,13 +174,15 @@ export default async function handler(request, response) {
       const required = error.acceptedPermissions || "Actions repository permission: write (fine-grained PAT)";
       const classicScopes = error.oauthScopes || diagnostics.classicTokenScopes || "not exposed (commonly a fine-grained token)";
       return response.status(403).json({
-        message: "GitHub refused the cancellation request. The running deployment used GITHUB_ACTIONS_TOKEN, and GitHub rejected its authorization for this endpoint.",
-        requiredPermission: required,
-        classicTokenScopes: classicScopes,
-        tokenAccount: diagnostics.account || null,
-        tokenAuthCheck: diagnostics.authCheckStatus,
-        ssoAuthorizationHeaderPresent: Boolean(error.sso || diagnostics.ssoHeaderPresent),
-        nextCheck: "Confirm the exact token stored in Vercel belongs to KULTHX/Cs16test and is approved for the KULTHX organization. For a classic PAT it needs the repo scope; for a fine-grained PAT it needs Actions: write and organization approval if required."
+        message: [
+          "GitHub refused the cancellation request. The Vercel secret name is correct, but GitHub rejected the PAT used at runtime.",
+          `Authenticated GitHub account: ${diagnostics.account || "not identified"}.`,
+          `Required endpoint permission: ${required}.`,
+          `Classic PAT scopes reported by GitHub: ${classicScopes}.`,
+          `Token authentication check: HTTP ${diagnostics.authCheckStatus}.`,
+          `Organization SSO header present: ${Boolean(error.sso || diagnostics.ssoHeaderPresent)}.`,
+          "For a fine-grained PAT, also verify that KULTHX has approved it under Organization Settings > Personal access tokens > Pending requests."
+        ].join(" ")
       });
     }
 

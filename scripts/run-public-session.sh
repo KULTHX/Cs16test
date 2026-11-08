@@ -20,9 +20,13 @@ if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
 fi
 SSH_ENABLED=false
 if [[ -n "${SSH_AUTHORIZED_KEYS:-}" && -n "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
-  SSH_ENABLED=true
+  if command -v tailscale >/dev/null 2>&1 && [[ -n "$(tailscale ip -4 2>/dev/null | head -n 1)" ]]; then
+    SSH_ENABLED=true
+  else
+    echo "SSH secrets are present, but this runner is not connected to Tailscale. SSH remains disabled."
+  fi
 else
-  echo "SSH is not configured yet. Add SSH_AUTHORIZED_KEYS and SSH_HOST_ED25519_PRIVATE_KEY Actions secrets to enable it."
+  echo "Private SSH is optional. Add SSH_AUTHORIZED_KEYS and SSH_HOST_ED25519_PRIVATE_KEY Actions secrets to enable it."
 fi
 
 case "$MAXPLAYERS" in
@@ -167,7 +171,7 @@ start_playit_with_retry() {
 }
 
 start_ssh() {
-  local ssh_user ssh_home
+  local ssh_user ssh_home tailscale_ip
   ssh_user="$(id -un)"
   ssh_home="$(getent passwd "$ssh_user" | cut -d: -f6)"
   if [[ -z "$ssh_home" || "$ssh_user" != "runner" ]]; then
@@ -175,19 +179,25 @@ start_ssh() {
     return 1
   fi
 
+  tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
+  if [[ -z "$tailscale_ip" ]]; then
+    echo "Tailscale IPv4 address is unavailable; refusing to expose SSH." >&2
+    return 1
+  fi
+
   sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "$ssh_home/.ssh"
-  printf '%s\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
+  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
   sudo chown "$ssh_user:$ssh_user" "$ssh_home/.ssh/authorized_keys"
   sudo chmod 0600 "$ssh_home/.ssh/authorized_keys"
 
-  printf '%s\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
+  printf '%s\\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
   sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
   sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key >/dev/null
 
   sudo mkdir -p /run/sshd
   cat > "$SSH_CONFIG" <<EOF
 Port 2222
-ListenAddress 127.0.0.1
+ListenAddress $tailscale_ip
 HostKey /etc/ssh/ssh_host_ed25519_key
 PidFile $SSH_PID_FILE
 AuthorizedKeysFile $ssh_home/.ssh/authorized_keys
@@ -198,7 +208,6 @@ AuthenticationMethods publickey
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 UsePAM no
-AllowTcpForwarding no
 AllowAgentForwarding no
 X11Forwarding no
 PermitTunnel no
@@ -215,7 +224,7 @@ EOF
     echo "SSH daemon failed to stay running." >&2
     return 1
   fi
-  echo "SSH daemon is listening on 127.0.0.1:2222 for key-only user $ssh_user."
+  echo "SSH daemon is listening only on Tailscale address $tailscale_ip:2222 for key-only user $ssh_user."
 }
 
 start_ssh_with_retry() {

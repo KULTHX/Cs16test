@@ -70,6 +70,8 @@ ssh -i ~/.ssh/cs16_friend -p PORT runner@bore.pub
 
 Replace `PORT` with the port printed after `BORE SSH TUNNEL READY`. On the first connection, verify the SSH host fingerprint against the SHA-256 fingerprint printed in the same GitHub Actions run before accepting it.
 
+If SSH reports that the host identification has changed after a new runner session, check the new SHA-256 fingerprint in that session's GitHub Actions log. Only after verifying it, remove the old entry with `ssh-keygen -R "[bore.pub]:PORT"` and reconnect. The friend login key does not change; this is the separate SSH server identity.
+
 ### Security and limitations
 
 Bore is a TCP relay; it does not encrypt the forwarded stream itself. The SSH protocol supplies encryption and authentication end-to-end. The public Bore endpoint is reachable from the Internet while the session is active, so key-only SSH authentication, disabled password login, disabled root login, and disabled TCP/agent forwarding are intentional protections. Do not add an unknown public key to `authorized_keys`.

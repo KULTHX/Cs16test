@@ -1,11 +1,7 @@
 name: CS 1.6 self-healing session (GitHub-hosted)
 
 on:
-  # One trigger starts a bounded watchdog session. No recurring schedule.
-  push:
-    branches: [main]
-    paths:
-      - ".github/one-off-test.trigger"
+  # The Vercel watchdog dispatches a fresh run only when no session is active.
   workflow_dispatch:
     inputs:
       maxplayers:

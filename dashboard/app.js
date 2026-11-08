@@ -88,7 +88,7 @@ async function sendControl(action) {
   }
 
   if (action === "stop" && !window.confirm(
-    "Stop the current CS 1.6 session? The external watchdog should relaunch it at its next check."
+    "Stop the current CS 1.6 session? The watchdog will keep monitoring but respect this manual stop until you press Start."
   )) return;
 
   requestInFlight = true;

@@ -21,13 +21,19 @@ This proves the engine and plugin stack can start on a GitHub-hosted Linux runne
 - **Playit:** forwards public UDP traffic to the runner's local `127.0.0.1:27015`.
 - **Vercel:** serves the public status page only. It does not run the game server.
 
-## Self-healing server session
+## Always-on external watchdog
 
-The workflow `.github/workflows/cs16-public-session.yml` uses an in-session watchdog, not a recurring schedule. Once triggered, it checks ReHLDS and the Playit agent every 10 seconds and restarts either process if it exits unexpectedly.
+The game session itself runs on a GitHub-hosted runner, so GitHub's six-hour maximum still applies. A separate watchdog function on Vercel Schedules checks the Actions workflow every 10 minutes. If it finds an active or queued session, it does nothing. If no session is active, it dispatches a new 20-slot session.
 
-The runner session is deliberately bounded to 5 hours 40 minutes, with the complete GitHub job capped at six hours. The watchdog can revive the game-server and tunnel processes while that runner is alive. It cannot resurrect a GitHub runner after GitHub ends the job or bypass GitHub's execution limit. A new session then needs a fresh authorized trigger.
+The Vercel schedule is a heartbeat for monitoring, not a fixed timetable for starting the game server. The game starts only when the watchdog sees that no session is active. The Vercel Hobby plan currently includes 5,000 Schedule runs per month; a 10-minute heartbeat uses about 4,320 runs in a 30-day month.
 
-The watchdog starts once from a change to `.github/one-off-test.trigger` or by manual workflow dispatch. It does not continuously chain workflows or run on a timer.
+The GitHub workflow also has an in-session watchdog that restarts ReHLDS or Playit if either process crashes while its runner is alive. A new GitHub runner still needs time to install the game files and reconnect the tunnel, so short disconnects are possible. This design is automatic recovery, not a guarantee of perfectly uninterrupted 24/7 service.
+
+### One-time watchdog permission
+
+Create a fine-grained GitHub personal access token restricted to **KULTHX/Cs16test** with **Actions: Read and write** permission. Add it to the Vercel project `cs16-community-status` as a Production environment variable named `GITHUB_ACTIONS_TOKEN`. Do not paste the token into chat or repository files. Redeploy the Vercel project after saving the variable.
+
+The watchdog pauses automatic relaunch after three consecutive failed workflow runs to avoid an endless retry loop if the configuration has a persistent error. Check Vercel runtime logs and GitHub Actions, fix the cause, then resume by resetting the failure history or manually launching the workflow.
 
 ## One-time Playit setup (required before public sessions)
 
@@ -46,7 +52,7 @@ Playit's official agent Docker instructions: https://github.com/playit-cloud/pla
 
 ## Start and monitor
 
-After adding `PLAYIT_SECRET_KEY` and configuring the UDP tunnel once, the watchdog can start from a change to `.github/one-off-test.trigger` or by using **Actions → CS 1.6 self-healing session (GitHub-hosted) → Run workflow**.
+After adding `PLAYIT_SECRET_KEY`, configuring the UDP tunnel, and adding `GITHUB_ACTIONS_TOKEN` to the Vercel Production environment, the Vercel watchdog starts sessions automatically. You can also manually launch **CS 1.6 self-healing session (GitHub-hosted)** from the Actions tab.
 
 A successful run must show:
 - ReHLDS version and GoldSrc protocol startup.

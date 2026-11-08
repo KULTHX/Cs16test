@@ -48,8 +48,12 @@ jobs:
           grep -Fq 'docker inspect' scripts/run-public-session.sh
           grep -Fq '20400' scripts/run-public-session.sh
           grep -Fq 'config/ssh/authorized_keys' scripts/run-public-session.sh
-          grep -Fq 'ListenAddress $tailscale_ip' scripts/run-public-session.sh
+          grep -Fq 'ListenAddress 127.0.0.1' scripts/run-public-session.sh
           grep -Fq 'AllowTcpForwarding no' scripts/run-public-session.sh
+          grep -Fq 'bore local 22' scripts/run-public-session.sh
+          grep -Fq 'ekzhang/bore:0.6.0' scripts/run-public-session.sh
+          grep -Fq 'BORE SSH TUNNEL READY' scripts/run-public-session.sh
+          grep -Fq 'bore.log' .github/workflows/cs16-public-session.yml
           python3 -m json.tool dashboard/vercel.json > /dev/null
           node --check dashboard/api/watchdog.js
           grep -Fq 'export const POST = handleSchedule(runWatchdog)' dashboard/api/watchdog.js

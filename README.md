@@ -23,9 +23,9 @@ This proves the engine and plugin stack can start on a GitHub-hosted Linux runne
 
 ## Always-on external watchdog
 
-The game session itself runs on a GitHub-hosted runner, so GitHub's six-hour maximum still applies. A separate watchdog function on Vercel Schedules checks the Actions workflow every 10 minutes. If it finds an active or queued session, it does nothing. If no session is active, it dispatches a new 20-slot session.
+The game session itself runs on a GitHub-hosted runner, so GitHub's six-hour maximum still applies. A separate watchdog function on Vercel Schedules checks the Actions workflow every 15 minutes. If it finds an active or queued session, it does nothing. If no session is active, it dispatches a new 20-slot session.
 
-The Vercel schedule is a heartbeat for monitoring, not a fixed timetable for starting the game server. The game starts only when the watchdog sees that no session is active. The Vercel Hobby plan currently includes 5,000 Schedule runs per month; a 10-minute heartbeat uses about 4,320 runs in a 30-day month.
+The Vercel schedule is a heartbeat for monitoring, not a fixed timetable for starting the game server. The game starts only when the watchdog sees that no session is active. The Vercel Hobby plan currently includes 5,000 Schedule runs per month; a 10-minute heartbeat uses about 2,880 runs in a 30-day month.
 
 The GitHub workflow also has an in-session watchdog that restarts ReHLDS or Playit if either process crashes while its runner is alive. A new GitHub runner still needs time to install the game files and reconnect the tunnel, so short disconnects are possible. This design is automatic recovery, not a guarantee of perfectly uninterrupted 24/7 service.
 

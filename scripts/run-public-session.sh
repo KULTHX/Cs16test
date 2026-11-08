@@ -204,12 +204,12 @@ start_ssh() {
   fi
 
   sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "$ssh_home/.ssh"
-  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
+  printf '%s\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
   sudo chown "$ssh_user:$ssh_user" "$ssh_home/.ssh/authorized_keys"
   sudo chmod 0600 "$ssh_home/.ssh/authorized_keys"
 
   if [[ -n "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
-    printf '%s\\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
+    printf '%s\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
     sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
     sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key | sudo tee /etc/ssh/ssh_host_ed25519_key.pub >/dev/null
   else
@@ -287,8 +287,8 @@ start_bore() {
       stop_bore
       return 1
     fi
-    address="$(grep -Eo 'bore\\.pub:[0-9]+' "$BORE_LOG_FILE" | tail -n 1 || true)"
-    if [[ "$address" =~ ^bore\\.pub:([0-9]+)$ ]]; then
+    address="$(grep -Eo 'bore\.pub:[0-9]+' "$BORE_LOG_FILE" | tail -n 1 || true)"
+    if [[ "$address" =~ ^bore\.pub:([0-9]+)$ ]]; then
       BORE_ADDRESS="$address"
       BORE_PORT="${BASH_REMATCH[1]}"
       echo "BORE SSH TUNNEL READY"

@@ -10,6 +10,7 @@ HLDS_DIR="$1"
 MAXPLAYERS="$2"
 LOG_FILE="$3"
 PLAYIT_LOG_FILE="$RUNNER_TEMP/playit-agent.log"
+BORE_LOG_FILE="$RUNNER_TEMP/bore.log"
 SSH_CONFIG="$RUNNER_TEMP/sshd_config"
 SSH_PID_FILE="$RUNNER_TEMP/sshd.pid"
 SSH_PID=""
@@ -19,27 +20,20 @@ if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
   exit 2
 fi
 # Load the public SSH keys registered in this repository.
-# Optional extra keys may still be supplied through the SSH_AUTHORIZED_KEYS Actions secret.
 AUTHORIZED_KEYS_FILE="${GITHUB_WORKSPACE:-}/config/ssh/authorized_keys"
-if [[ -f "$AUTHORIZED_KEYS_FILE" ]]; then
-  EXTRA_AUTHORIZED_KEYS="${SSH_AUTHORIZED_KEYS:-}"
+SSH_AUTHORIZED_KEYS=""
+if [[ -s "$AUTHORIZED_KEYS_FILE" ]]; then
   SSH_AUTHORIZED_KEYS="$(cat "$AUTHORIZED_KEYS_FILE")"
-  if [[ -n "$EXTRA_AUTHORIZED_KEYS" ]]; then
-    SSH_AUTHORIZED_KEYS="${SSH_AUTHORIZED_KEYS}
-${EXTRA_AUTHORIZED_KEYS}"
-  fi
-fi
-SSH_ENABLED=false
-if [[ -n "${SSH_AUTHORIZED_KEYS:-}" && -n "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
-  if command -v tailscale >/dev/null 2>&1 && [[ -n "$(tailscale ip -4 2>/dev/null | head -n 1)" ]]; then
-    SSH_ENABLED=true
-  else
-    echo "SSH secrets are present, but this runner is not connected to Tailscale. SSH remains disabled."
-  fi
+  SSH_ENABLED=true
 else
-  echo "Private SSH is optional. Add SSH_AUTHORIZED_KEYS and SSH_HOST_ED25519_PRIVATE_KEY Actions secrets to enable it."
+  SSH_ENABLED=false
+  echo "No SSH public keys found; Bore SSH access will be skipped."
 fi
-
+BORE_ENABLED=false
+BORE_LOG_PID=""
+BORE_ADDRESS=""
+BORE_PORT=""
+SSH_HOST_FINGERPRINT=""
 case "$MAXPLAYERS" in
   20|32) ;;
   *) echo "MAXPLAYERS must be 20 or 32." >&2; exit 2 ;;
@@ -49,6 +43,7 @@ cd "$HLDS_DIR"
 export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
 : > "$LOG_FILE"
 : > "$PLAYIT_LOG_FILE"
+: > "$BORE_LOG_FILE"
 
 # Keep one runner for a bounded session. The watchdog revives child processes
 # but never chains workflows or attempts to exceed GitHub's job limit.
@@ -78,9 +73,22 @@ stop_ssh() {
   rm -f "$SSH_PID_FILE"
 }
 
+stop_bore() {
+  if [[ -n "$BORE_LOG_PID" ]] && kill -0 "$BORE_LOG_PID" 2>/dev/null; then
+    kill "$BORE_LOG_PID" 2>/dev/null || true
+    wait "$BORE_LOG_PID" 2>/dev/null || true
+  fi
+  BORE_LOG_PID=""
+  docker stop bore >/dev/null 2>&1 || true
+  docker rm -f bore >/dev/null 2>&1 || true
+  BORE_ADDRESS=""
+  BORE_PORT=""
+}
+
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
+  stop_bore
   stop_ssh
   stop_server
   docker logs --tail 200 playit > "$PLAYIT_LOG_FILE" 2>&1 || true
@@ -182,7 +190,7 @@ start_playit_with_retry() {
 }
 
 start_ssh() {
-  local ssh_user ssh_home tailscale_ip
+  local ssh_user ssh_home
   ssh_user="$(id -un)"
   ssh_home="$(getent passwd "$ssh_user" | cut -d: -f6)"
   if [[ -z "$ssh_home" || "$ssh_user" != "runner" ]]; then
@@ -190,25 +198,32 @@ start_ssh() {
     return 1
   fi
 
-  tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
-  if [[ -z "$tailscale_ip" ]]; then
-    echo "Tailscale IPv4 address is unavailable; refusing to expose SSH." >&2
+  if [[ -z "${SSH_AUTHORIZED_KEYS:-}" ]]; then
+    echo "No SSH authorized keys are configured." >&2
     return 1
   fi
 
   sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "$ssh_home/.ssh"
-  printf '%s\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
+  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
   sudo chown "$ssh_user:$ssh_user" "$ssh_home/.ssh/authorized_keys"
   sudo chmod 0600 "$ssh_home/.ssh/authorized_keys"
 
-  printf '%s\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
+  if [[ -n "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
+    printf '%s\\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
+    sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
+    sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key | sudo tee /etc/ssh/ssh_host_ed25519_key.pub >/dev/null
+  else
+    sudo rm -f /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key.pub
+    sudo ssh-keygen -q -t ed25519 -N "" -f /etc/ssh/ssh_host_ed25519_key
+    echo "Generated a per-session SSH host key; login authorized keys remain unchanged."
+  fi
   sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
-  sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key >/dev/null
+  SSH_HOST_FINGERPRINT="$(sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 | awk '{print $2}')"
 
   sudo mkdir -p /run/sshd
   cat > "$SSH_CONFIG" <<EOF
-Port 2222
-ListenAddress $tailscale_ip
+Port 22
+ListenAddress 127.0.0.1
 HostKey /etc/ssh/ssh_host_ed25519_key
 PidFile $SSH_PID_FILE
 AuthorizedKeysFile $ssh_home/.ssh/authorized_keys
@@ -217,13 +232,16 @@ PermitRootLogin no
 PubkeyAuthentication yes
 AuthenticationMethods publickey
 PasswordAuthentication no
+PermitEmptyPasswords no
 KbdInteractiveAuthentication no
 UsePAM no
 AllowTcpForwarding no
 AllowAgentForwarding no
 X11Forwarding no
 PermitTunnel no
+PermitUserEnvironment no
 MaxAuthTries 3
+MaxSessions 4
 LoginGraceTime 20
 ClientAliveInterval 30
 ClientAliveCountMax 3
@@ -236,7 +254,8 @@ EOF
     echo "SSH daemon failed to stay running." >&2
     return 1
   fi
-  echo "SSH daemon is listening only on Tailscale address $tailscale_ip:2222 for key-only user $ssh_user."
+  echo "SSH daemon is listening on 127.0.0.1:22 (key-only)."
+  echo "SSH host key fingerprint: $SSH_HOST_FINGERPRINT"
 }
 
 start_ssh_with_retry() {
@@ -249,13 +268,60 @@ start_ssh_with_retry() {
   return 1
 }
 
+start_bore() {
+  local attempt running address
+  stop_bore
+  printf '\n[%s] Starting Bore SSH tunnel...\n' "$(date -u +%FT%TZ)" >> "$BORE_LOG_FILE"
+  if ! timeout 120s docker run -d --rm --name bore --network host \
+      ekzhang/bore:0.6.0 local 22 --local-host 127.0.0.1 --to bore.pub >> "$BORE_LOG_FILE" 2>&1; then
+    echo "Bore container could not start; the CS 1.6 session will continue." | tee -a "$BORE_LOG_FILE"
+    return 1
+  fi
+
+  docker logs -f bore >> "$BORE_LOG_FILE" 2>&1 &
+  BORE_LOG_PID=$!
+  for attempt in $(seq 1 30); do
+    running="$(docker inspect -f '{{.State.Running}}' bore 2>/dev/null || true)"
+    if [[ "$running" != "true" ]]; then
+      echo "Bore exited before publishing an SSH address." | tee -a "$BORE_LOG_FILE"
+      stop_bore
+      return 1
+    fi
+    address="$(grep -Eo 'bore\\.pub:[0-9]+' "$BORE_LOG_FILE" | tail -n 1 || true)"
+    if [[ "$address" =~ ^bore\\.pub:([0-9]+)$ ]]; then
+      BORE_ADDRESS="$address"
+      BORE_PORT="${BASH_REMATCH[1]}"
+      echo "BORE SSH TUNNEL READY"
+      echo "Public address: $BORE_ADDRESS"
+      echo "SSH command: ssh -p $BORE_PORT runner@bore.pub"
+      echo "SSH host key fingerprint: $SSH_HOST_FINGERPRINT"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "Bore did not publish an address within 60 seconds; keeping the game server running." | tee -a "$BORE_LOG_FILE"
+  docker logs --tail 50 bore >> "$BORE_LOG_FILE" 2>&1 || true
+  stop_bore
+  return 1
+}
+
 start_server_with_retry
 start_playit_with_retry
+BORE_RETRY_AT=0
 if [[ "$SSH_ENABLED" == "true" ]]; then
-  start_ssh_with_retry
+  if start_ssh_with_retry; then
+    if start_bore; then
+      BORE_ENABLED=true
+    else
+      BORE_RETRY_AT=$((SECONDS + 60))
+    fi
+  else
+    echo "SSH setup failed; the game server and Playit will continue without remote SSH."
+    SSH_ENABLED=false
+  fi
 fi
 
-echo "Self-healing session active. The watchdog checks ReHLDS and Playit every 10 seconds."
+echo "Self-healing session active. The watchdog checks ReHLDS, Playit, SSH, and Bore every 10 seconds."
 while (( SECONDS < DEADLINE )); do
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
     set +e
@@ -276,8 +342,31 @@ while (( SECONDS < DEADLINE )); do
   if [[ "$SSH_ENABLED" == "true" ]]; then
     if [[ -z "$SSH_PID" ]] || ! sudo kill -0 "$SSH_PID" 2>/dev/null; then
       echo "Watchdog: SSH daemon stopped unexpectedly."
+      stop_bore
       stop_ssh
-      start_ssh_with_retry
+      if ! start_ssh_with_retry; then
+        echo "Watchdog: SSH could not be restarted; disabling the SSH tunnel without stopping the game."
+        SSH_ENABLED=false
+        BORE_ENABLED=false
+      fi
+    fi
+
+    if [[ "$SSH_ENABLED" == "true" ]]; then
+      bore_running="$(docker inspect -f '{{.State.Running}}' bore 2>/dev/null || true)"
+      if [[ "$BORE_ENABLED" == "true" && "$bore_running" != "true" ]]; then
+        echo "Watchdog: Bore tunnel stopped; scheduling a reconnect."
+        stop_bore
+        BORE_ENABLED=false
+        BORE_RETRY_AT=$((SECONDS + 30))
+      fi
+
+      if [[ "$BORE_ENABLED" != "true" ]] && (( SECONDS >= BORE_RETRY_AT )); then
+        if start_bore; then
+          BORE_ENABLED=true
+        else
+          BORE_RETRY_AT=$((SECONDS + 60))
+        fi
+      fi
     fi
   fi
 

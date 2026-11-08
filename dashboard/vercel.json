@@ -11,6 +11,7 @@
   "schedules": {
     "cs16-watchdog": {
       "schedule": "*/10 * * * *",
+      "jitter": 0,
       "function": "api/watchdog.js",
       "timezone": "UTC"
     }

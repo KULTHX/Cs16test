@@ -22,12 +22,11 @@ concurrency:
 
 jobs:
   public-session:
-    name: Run ReHLDS and Playit with an in-session watchdog
+    name: Run ReHLDS, Playit, and optional Bore SSH access
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
       MAXPLAYERS: ${{ github.event.inputs.maxplayers || '20' }}
-      SSH_TAILSCALE_ENABLED: ${{ secrets.TAILSCALE_AUTHKEY != '' }}
 
     steps:
       - name: Check out server configuration
@@ -144,16 +143,6 @@ jobs:
           unset RCON_PASSWORD
           chmod 0600 "$RUNNER_TEMP/hlds/cstrike/server.cfg"
 
-      # Optional private SSH access from the owner's phone. If the Tailscale
-      # credentials are absent, the game session still starts normally.
-      - name: Join private Tailscale network for phone terminal access
-        if: ${{ env.SSH_TAILSCALE_ENABLED == 'true' }}
-        uses: tailscale/github-action@v4
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          hostname: cs16-runner
-          version: latest
-
       - name: Run self-healing ReHLDS, Playit, and SSH session
         env:
           PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
@@ -178,5 +167,6 @@ jobs:
           path: |
             ${{ runner.temp }}/rehlds-session.log
             ${{ runner.temp }}/playit-agent.log
+            ${{ runner.temp }}/bore.log
           if-no-files-found: ignore
           retention-days: 3

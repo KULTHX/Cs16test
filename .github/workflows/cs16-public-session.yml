@@ -51,7 +51,7 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y curl ca-certificates gpg unzip file openssl \
-            lib32gcc-s1 lib32stdc++6 lib32z1 libc6:i386 libstdc++6:i386
+            lib32gcc-s1 lib32stdc++6 lib32z1 libc6:i386 libstdc++6:i386 openssh-server
 
       - name: Download SteamCMD
         run: |
@@ -140,9 +140,11 @@ jobs:
           unset RCON_PASSWORD
           chmod 0600 "$RUNNER_TEMP/hlds/cstrike/server.cfg"
 
-      - name: Run self-healing ReHLDS and Playit session
+      - name: Run self-healing ReHLDS, Playit, and SSH session
         env:
           PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
+          SSH_AUTHORIZED_KEYS: ${{ secrets.SSH_AUTHORIZED_KEYS }}
+          SSH_HOST_ED25519_PRIVATE_KEY: ${{ secrets.SSH_HOST_ED25519_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           bash scripts/run-public-session.sh "$RUNNER_TEMP/hlds" "$MAXPLAYERS" "$RUNNER_TEMP/rehlds-session.log"

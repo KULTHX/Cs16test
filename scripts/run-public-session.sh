@@ -18,9 +18,11 @@ if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
   echo "PLAYIT_SECRET_KEY is required." >&2
   exit 2
 fi
-if [[ -z "${SSH_AUTHORIZED_KEYS:-}" || -z "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
-  echo "SSH_AUTHORIZED_KEYS and SSH_HOST_ED25519_PRIVATE_KEY Actions secrets are required." >&2
-  exit 2
+SSH_ENABLED=false
+if [[ -n "${SSH_AUTHORIZED_KEYS:-}" && -n "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
+  SSH_ENABLED=true
+else
+  echo "SSH is not configured yet. Add SSH_AUTHORIZED_KEYS and SSH_HOST_ED25519_PRIVATE_KEY Actions secrets to enable it."
 fi
 
 case "$MAXPLAYERS" in
@@ -228,7 +230,9 @@ start_ssh_with_retry() {
 
 start_server_with_retry
 start_playit_with_retry
-start_ssh_with_retry
+if [[ "$SSH_ENABLED" == "true" ]]; then
+  start_ssh_with_retry
+fi
 
 echo "Self-healing session active. The watchdog checks ReHLDS and Playit every 10 seconds."
 while (( SECONDS < DEADLINE )); do
@@ -248,10 +252,12 @@ while (( SECONDS < DEADLINE )); do
     start_server_with_retry
   fi
 
-  if [[ -z "$SSH_PID" ]] || ! sudo kill -0 "$SSH_PID" 2>/dev/null; then
-    echo "Watchdog: SSH daemon stopped unexpectedly."
-    stop_ssh
-    start_ssh_with_retry
+  if [[ "$SSH_ENABLED" == "true" ]]; then
+    if [[ -z "$SSH_PID" ]] || ! sudo kill -0 "$SSH_PID" 2>/dev/null; then
+      echo "Watchdog: SSH daemon stopped unexpectedly."
+      stop_ssh
+      start_ssh_with_retry
+    fi
   fi
 
   playit_running="$(docker inspect -f '{{.State.Running}}' playit 2>/dev/null || true)"

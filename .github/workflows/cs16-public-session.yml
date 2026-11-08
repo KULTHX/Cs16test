@@ -1,9 +1,11 @@
-name: CS 1.6 public session (GitHub-hosted)
+name: CS 1.6 self-healing session (GitHub-hosted)
 
 on:
-  # Start a fresh bounded session every six hours.
-  schedule:
-    - cron: "17 0,6,12,18 * * *"
+  # One trigger starts a bounded watchdog session. No recurring schedule.
+  push:
+    branches: [main]
+    paths:
+      - ".github/one-off-test.trigger"
   workflow_dispatch:
     inputs:
       maxplayers:
@@ -24,7 +26,7 @@ concurrency:
 
 jobs:
   public-session:
-    name: Run ReHLDS and Playit tunnel for a bounded session
+    name: Run ReHLDS and Playit with an in-session watchdog
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
@@ -142,74 +144,12 @@ jobs:
           unset RCON_PASSWORD
           chmod 0600 "$RUNNER_TEMP/hlds/cstrike/server.cfg"
 
-      - name: Start ReHLDS and attach Playit UDP agent
+      - name: Run self-healing ReHLDS and Playit session
         env:
           PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/hlds"
-          export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
-          LOG_FILE="$RUNNER_TEMP/rehlds-session.log"
-
-          echo "Starting ReHLDS on loopback UDP 27015 with $MAXPLAYERS slots..."
-          timeout --signal=TERM --kill-after=30s 340m \
-            ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
-            +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +sv_lan 0 \
-            > "$LOG_FILE" 2>&1 &
-          SERVER_PID=$!
-
-          READY=0
-          for attempt in $(seq 1 90); do
-            if grep -Eiq 'World triggered "Round_Start"' "$LOG_FILE"; then
-              READY=1
-              break
-            fi
-            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-              echo "ERROR: ReHLDS exited before reaching Round_Start." >&2
-              cat "$LOG_FILE"
-              exit 1
-            fi
-            sleep 2
-          done
-
-          if [[ "$READY" -ne 1 ]]; then
-            echo "ERROR: ReHLDS did not reach the first round within 180 seconds." >&2
-            cat "$LOG_FILE"
-            exit 1
-          fi
-
-          grep -Eiq 'Reunion[[:space:]]+RUN' "$LOG_FILE" || {
-            echo "ERROR: ReUnion was not reported as RUN." >&2
-            cat "$LOG_FILE"
-            exit 1
-          }
-
-          echo "ReHLDS and ReUnion are running. Starting Playit UDP agent..."
-          docker run -d --rm --name playit --network host \
-            -e SECRET_KEY="$PLAYIT_SECRET_KEY" \
-            ghcr.io/playit-cloud/playit-agent:1.0
-
-          sleep 20
-          if [[ "$(docker inspect -f '{{.State.Running}}' playit)" != "true" ]]; then
-            echo "ERROR: Playit agent container did not stay running." >&2
-            docker logs --tail 100 playit || true
-            exit 1
-          fi
-          docker logs --tail 60 playit || true
-
-          echo "Public session is active. Session length: up to 340 minutes (5 hours 40 minutes)."
-          set +e
-          wait "$SERVER_PID"
-          STATUS=$?
-          set -e
-
-          if [[ "$STATUS" -ne 124 ]]; then
-            echo "ERROR: ReHLDS session ended unexpectedly (status $STATUS)." >&2
-            tail -n 200 "$LOG_FILE"
-            exit 1
-          fi
-
-          echo "Session reached its planned time limit. A fresh scheduled session is expected at the next six-hour slot; GitHub may delay or drop scheduled events."
+          bash scripts/run-public-session.sh "$RUNNER_TEMP/hlds" "$MAXPLAYERS" "$RUNNER_TEMP/rehlds-session.log"
 
       - name: Capture session logs and stop Playit agent
         if: always()

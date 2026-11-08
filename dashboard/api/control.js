@@ -83,9 +83,13 @@ export default async function handler(request, response) {
     return response.status(405).json({ message: "Method not allowed" });
   }
 
-  const configuredKey = process.env.SERVER_CONTROL_SECRET;
+  const configuredKeys = [
+    process.env.SERVER_CONTROL_SECRET,
+    process.env.MANUS_CONTROL_SECRET
+  ].filter((key) => typeof key === "string" && key.length > 0);
   const suppliedKey = request.headers.authorization?.replace(/^Bearer\s+/i, "") || "";
-  if (!configuredKey || !safeEqual(suppliedKey, configuredKey)) {
+  const authorized = configuredKeys.some((key) => safeEqual(suppliedKey, key));
+  if (!authorized) {
     return response.status(401).json({ message: "Invalid admin key." });
   }
 

@@ -60,6 +60,22 @@ async function runWatchdog(metadata) {
     return;
   }
 
+  // A cancelled latest session means an administrator intentionally pressed Stop.
+  // Keep this watchdog alive and continue checking, but do not relaunch until Start
+  // dispatches a newer session. Unexpected failures/timeouts still self-heal below.
+  const latestCompleted = runs
+    .filter((run) => run.status === "completed")
+    .sort((a, b) => Date.parse(b.run_started_at || b.created_at) - Date.parse(a.run_started_at || a.created_at))[0];
+
+  if (latestCompleted?.conclusion === "cancelled") {
+    console.log(JSON.stringify({
+      event: "watchdog_manual_stop_respected",
+      schedule: metadata.name,
+      runId: latestCompleted.id,
+    }));
+    return;
+  }
+
   const completed = runs
     .filter((run) => run.status === "completed")
     .sort((a, b) => Date.parse(b.run_started_at || b.created_at) - Date.parse(a.run_started_at || a.created_at));
@@ -67,7 +83,7 @@ async function runWatchdog(metadata) {
   let consecutiveFailures = 0;
   for (const run of completed) {
     if (run.conclusion === "success") break;
-    if (["failure", "cancelled", "timed_out", "action_required", "startup_failure"].includes(run.conclusion)) {
+    if (["failure", "timed_out", "action_required", "startup_failure"].includes(run.conclusion)) {
       consecutiveFailures += 1;
     } else {
       break;

@@ -174,11 +174,11 @@ start_ssh() {
   fi
 
   sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "$ssh_home/.ssh"
-  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
+  printf '%s\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
   sudo chown "$ssh_user:$ssh_user" "$ssh_home/.ssh/authorized_keys"
   sudo chmod 0600 "$ssh_home/.ssh/authorized_keys"
 
-  printf '%s\\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
+  printf '%s\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
   sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
   sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key >/dev/null
 

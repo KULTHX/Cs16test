@@ -14,7 +14,8 @@ It does **not** use Oracle, a VPS, a home computer, or another permanent host.
 The dashboard project runs a private Vercel Schedules function every 15 minutes. It queries the status of `.github/workflows/cs16-public-session.yml` using the GitHub Actions API:
 
 - If a run is queued or in progress, the watchdog leaves it alone.
-- If no run is active, it calls GitHub's workflow-dispatch API to start a fresh 20-slot session.
+- If no run is active and the latest session ended by failure or timeout, it calls GitHub's workflow-dispatch API to start a fresh 20-slot session.
+- If the latest session was cancelled from the dashboard, it treats that as an intentional manual stop. The watchdog remains scheduled and keeps monitoring, but does not relaunch until the administrator presses Start.
 - If there are three consecutive failed runs, it pauses relaunches to prevent a permanent failure loop.
 
 The heartbeat is not a fixed schedule for starting the game server. It is a monitoring interval; a new server session is requested only when no active GitHub Actions run is found.

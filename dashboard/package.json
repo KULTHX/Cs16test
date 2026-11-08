@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@vercel/schedules": "0.0.3"
+    "@vercel/schedules": "0.0.3",
+    "goldsrc-query": "^1.1.6"
   }
 }

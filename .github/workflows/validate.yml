@@ -50,7 +50,7 @@ jobs:
           grep -Fq 'config/ssh/authorized_keys' scripts/run-public-session.sh
           grep -Fq 'ListenAddress 127.0.0.1' scripts/run-public-session.sh
           grep -Fq 'AllowTcpForwarding no' scripts/run-public-session.sh
-          grep -Fq 'bore local 22' scripts/run-public-session.sh
+          grep -Fq 'ekzhang/bore:0.6.0 local 22' scripts/run-public-session.sh
           grep -Fq 'ekzhang/bore:0.6.0' scripts/run-public-session.sh
           grep -Fq 'BORE SSH TUNNEL READY' scripts/run-public-session.sh
           grep -Fq 'bore.log' .github/workflows/cs16-public-session.yml

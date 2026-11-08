@@ -38,9 +38,13 @@ jobs:
       - name: Check public session workflow settings
         run: |
           grep -Fq 'timeout-minutes: 360' .github/workflows/cs16-public-session.yml
-          grep -Fq 'one-off-test.trigger' .github/workflows/cs16-public-session.yml
           ! grep -Eq '^[[:space:]]*schedule:' .github/workflows/cs16-public-session.yml
+          ! grep -Eq '^[[:space:]]*schedule:' dashboard/vercel.json
+          grep -Fq 'GITHUB_ACTIONS_TOKEN' dashboard/api/watchdog.js
+          grep -Fq '*/10 * * * *' dashboard/vercel.json
           grep -Fq 'PLAYIT_SECRET_KEY' .github/workflows/cs16-public-session.yml
           grep -Fq 'ghcr.io/playit-cloud/playit-agent:1.0' scripts/run-public-session.sh
           grep -Fq 'docker inspect' scripts/run-public-session.sh
           grep -Fq '20400' scripts/run-public-session.sh
+          python3 -m json.tool dashboard/vercel.json > /dev/null
+          node --check dashboard/api/watchdog.js

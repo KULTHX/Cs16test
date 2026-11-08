@@ -165,15 +165,18 @@ start_playit_with_retry() {
 }
 
 start_ssh() {
-  local ssh_user="csadmin"
-  if ! id "$ssh_user" >/dev/null 2>&1; then
-    sudo useradd --create-home --shell /bin/bash "$ssh_user"
+  local ssh_user ssh_home
+  ssh_user="$(id -un)"
+  ssh_home="$(getent passwd "$ssh_user" | cut -d: -f6)"
+  if [[ -z "$ssh_home" || "$ssh_user" != "runner" ]]; then
+    echo "Unexpected GitHub runner account; refusing to configure SSH for $ssh_user." >&2
+    return 1
   fi
 
-  sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "/home/$ssh_user/.ssh"
-  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "/home/$ssh_user/.ssh/authorized_keys" >/dev/null
-  sudo chown "$ssh_user:$ssh_user" "/home/$ssh_user/.ssh/authorized_keys"
-  sudo chmod 0600 "/home/$ssh_user/.ssh/authorized_keys"
+  sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "$ssh_home/.ssh"
+  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "$ssh_home/.ssh/authorized_keys" >/dev/null
+  sudo chown "$ssh_user:$ssh_user" "$ssh_home/.ssh/authorized_keys"
+  sudo chmod 0600 "$ssh_home/.ssh/authorized_keys"
 
   printf '%s\\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
   sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
@@ -185,7 +188,7 @@ Port 2222
 ListenAddress 127.0.0.1
 HostKey /etc/ssh/ssh_host_ed25519_key
 PidFile $SSH_PID_FILE
-AuthorizedKeysFile /home/$ssh_user/.ssh/authorized_keys
+AuthorizedKeysFile $ssh_home/.ssh/authorized_keys
 AllowUsers $ssh_user
 PermitRootLogin no
 PubkeyAuthentication yes
@@ -210,7 +213,7 @@ EOF
     echo "SSH daemon failed to stay running." >&2
     return 1
   fi
-  echo "SSH daemon is listening on 127.0.0.1:2222 for key-only user csadmin."
+  echo "SSH daemon is listening on 127.0.0.1:2222 for key-only user $ssh_user."
 }
 
 start_ssh_with_retry() {

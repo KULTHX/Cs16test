@@ -50,83 +50,31 @@ The watchdog pauses automatic relaunch after three consecutive failed workflow r
 
 Playit's official agent Docker instructions: https://github.com/playit-cloud/playit-agent#docker
 
-## Private SSH terminal access from Android (Termux)
+## SSH terminal access through Bore
 
-This optional feature allows an invited friend to use a normal SSH terminal on the **currently active GitHub Actions runner**. Tailscale provides the private network, and SSH listens only on the runner's Tailscale IP. No public SSH port is opened.
+This optional feature gives the registered SSH public-key holder a normal Linux terminal on the **currently active GitHub Actions runner**. The runner's SSH daemon listens only on `127.0.0.1:22`; Bore v0.6.0 forwards that local TCP port to a random public port on `bore.pub`. The existing Playit UDP tunnel for CS 1.6 is unchanged.
 
-Important: the runner is temporary. The SSH client key and server host identity can remain stable, and the same hostname is reused, but access exists only while a GitHub Actions session is active. Files and packages installed directly on the runner are lost when that runner is replaced. GitHub-hosted runners have a bounded job lifetime.
+The runner is temporary and has GitHub's bounded job lifetime. The authorized client public key remains in the repository across sessions, but the Bore public port changes when a new tunnel is created. Files and packages installed directly on the runner disappear when the runner is replaced. Save important work back to Git or another persistent store.
 
-### A. Configure the private network once
+### Access control and connection
 
-1. Create a free Tailscale account and install the official Tailscale app on your phone.
-2. Open the Tailscale admin console → **Access controls**. Merge these entries into your existing policy file. Do not erase other rules:
-
-```json
-{
-  "tagOwners": {
-    "tag:cs16-runner": ["autogroup:admin", "autogroup:owner"]
-  },
-  "grants": [
-    {
-      "src": ["autogroup:member"],
-      "dst": ["tag:cs16-runner"],
-      "ip": ["tcp:2222"]
-    }
-  ]
-}
-```
-
-This limits access to TCP port 2222 on the tagged runner. Invited tailnet members can use it; do not invite anyone you do not trust with shell access.
-
-3. In Tailscale admin console → **Keys** → **Generate auth key**, create a key with:
-   - Reusable: **on**
-   - Ephemeral: **on**
-   - Tag: **tag:cs16-runner**
-   - Pre-approved: **on**, if device approval is enabled
-   - Expiry: choose the longest allowed period (up to 90 days); create a replacement when it expires.
-
-4. In GitHub **KULTHX/Cs16test → Settings → Secrets and variables → Actions**, create repository secret:
-   - `TAILSCALE_AUTHKEY`: the auth key you just generated.
-
-Keep this key private. Do not commit it or send it in chat. Reusable auth keys are powerful credentials; revoke them in Tailscale if exposed.
-
-### B. Create the stable SSH server identity once
-
-On the owner phone in Termux:
+- The authorized public key is stored at `config/ssh/authorized_keys`. The matching private key must remain on the friend's own computer; never commit or share that private key.
+- SSH password authentication and root login are disabled. Only public-key authentication is accepted, and the account is `runner`.
+- The SSH server host key is generated for each runner session unless `SSH_HOST_ED25519_PRIVATE_KEY` is already configured as a GitHub Actions secret. Its SHA-256 fingerprint is printed in the Actions log.
+- Bore logs the public endpoint, for example `bore.pub:45123`. The port is assigned by the Bore relay and is not fixed.
+- Connect from the friend's computer using the private key that matches the registered public key:
 
 ```bash
-pkg update -y
-pkg install -y openssh
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-ssh-keygen -t ed25519 -a 64 -N "" -f ~/.ssh/cs16_server_host -C "cs16-runner-host"
+ssh -i PATH_TO_FRIEND_PRIVATE_KEY -p PORT runner@bore.pub
 ```
 
-Add the contents of this **private host key** to GitHub Actions repository secrets as:
-- `SSH_HOST_ED25519_PRIVATE_KEY`: the complete contents of `~/.ssh/cs16_server_host`.
+Replace `PATH_TO_FRIEND_PRIVATE_KEY` with the actual private-key path and `PORT` with the port printed after `BORE SSH TUNNEL READY`. On the first connection, verify the SSH host fingerprint against the SHA-256 fingerprint printed in the same GitHub Actions run before accepting it.
 
-Do not send this private host key to your friend. The repository already contains the friend's **public client key** at `config/ssh/authorized_keys`; the private client key stays with your friend.
+### Security and limitations
 
-The same server host key is loaded into each new runner, so your friend should accept the host identity on the first SSH connection and should not get a host-key change warning on later sessions.
+Bore is a TCP relay; it does not encrypt the forwarded stream itself. The SSH protocol supplies encryption and authentication end-to-end. The public Bore endpoint is reachable from the Internet while the session is active, so key-only SSH authentication, disabled password login, disabled root login, and disabled TCP/agent forwarding are intentional protections. Do not add an unknown public key to `authorized_keys`.
 
-### C. Invite the friend and connect
-
-1. In Tailscale admin console → **Users**, invite your friend's email to the tailnet. Your friend installs the Tailscale app, signs in with their own account, and accepts the invitation.
-2. The friend opens Termux and runs:
-
-```bash
-pkg update -y
-pkg install -y openssh
-ssh -i ~/.ssh/cs16_friend -p 2222 runner@cs16-runner
-```
-
-If the private key has different permissions, run `chmod 600 ~/.ssh/cs16_friend` first. The first connection asks to trust the SSH host fingerprint; accept only when it matches the fingerprint you provide from the owner's host public key. Tailscale MagicDNS must be enabled for the short hostname `cs16-runner` to resolve.
-
-### What the friend can do
-
-The friend logs in as the temporary Linux user `runner`, which can use the runner's normal `sudo` permissions to install packages and edit files in that active session. It is not a persistent VPS: copy important changes back to the Git repository or another persistent store before the GitHub job ends.
-
-Tailscale's free Personal plan currently allows up to six users. A friend must be invited as a separate user; never share one Tailscale login between people.
+If Bore fails or cannot reach `bore.pub`, the CS 1.6 server and Playit tunnel continue running. The in-session watchdog retries the SSH tunnel and logs the new public address when it reconnects. The Vercel watchdog's Start/Stop behavior is unchanged.
 
 ## Start and monitor
 

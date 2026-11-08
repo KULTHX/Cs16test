@@ -9,21 +9,25 @@ This mode uses only:
 
 It does **not** use Oracle, a VPS, a home computer, or another permanent host.
 
-## In-session watchdog (no schedule)
+## Always-on watchdog via Vercel Schedules
 
-The workflow `.github/workflows/cs16-public-session.yml` does not use a cron schedule and does not chain new workflow runs. A single runner session starts ReHLDS and Playit, then checks both processes every 10 seconds. If the ReHLDS process exits, the watchdog attempts to start it again and waits for `Round_Start` plus ReUnion `RUN`. If the Playit container exits, the watchdog recreates it using the repository secret.
+The dashboard project runs a private Vercel Schedules function every 10 minutes. It queries the status of `.github/workflows/cs16-public-session.yml` using the GitHub Actions API:
 
-The session is bounded to 5 hours 40 minutes, while the complete Actions job has a six-hour timeout. This allows automatic recovery from a child-process crash only while the GitHub runner remains alive. It cannot restart a job after GitHub ends the runner, overcome account or platform limits, or provide guaranteed 24/7 uptime. A fresh runner needs a new explicit trigger.
+- If a run is queued or in progress, the watchdog leaves it alone.
+- If no run is active, it calls GitHub's workflow-dispatch API to start a fresh 20-slot session.
+- If there are three consecutive failed runs, it pauses relaunches to prevent a permanent failure loop.
 
-### Important GitHub limits
+The heartbeat is not a fixed schedule for starting the game server. It is a monitoring interval; a new server session is requested only when no active GitHub Actions run is found.
 
-- GitHub-hosted jobs have a maximum execution time of six hours; this workflow uses a 5-hour-40-minute session budget and a 360-minute job timeout.
-- The watchdog revives the ReHLDS and Playit processes within that session, not the GitHub runner or workflow itself.
-- No cron schedule or self-chaining workflow is configured.
+The Vercel Hobby team currently includes 5,000 Schedules executions per month. A 10-minute interval uses about 4,320 executions in a 30-day month. Schedule executions are not a continuously running process, so recovery detection can take up to around 10 minutes, plus runner startup time.
 
-Official documentation:
-- Job execution limits: https://docs.github.com/en/actions/reference/limits
-- Workflow triggers: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+The GitHub runner remains subject to the six-hour job limit. The in-session watchdog restarts ReHLDS and Playit child processes while that runner is alive. Vercel Schedules then detects when the GitHub workflow has ended and dispatches a new session. This provides automatic recovery but cannot promise zero downtime.
+
+### Required GitHub token in Vercel
+
+Create a fine-grained GitHub personal access token restricted to this repository only, with **Actions: Read and write**. Add it to the Vercel project `cs16-community-status` as Production environment variable `GITHUB_ACTIONS_TOKEN`. Keep the token out of chat and Git. Redeploy the production project after saving it.
+
+The static Vercel function is private and can only be invoked by the Vercel Schedules infrastructure. The GitHub token is read only by this function and is not exposed to browser clients.
 
 ## One-time Playit setup
 
@@ -43,7 +47,7 @@ Official Playit Docker instructions: https://github.com/playit-cloud/playit-agen
 
 ## Start / monitor
 
-After the one-time Playit secret and UDP tunnel setup, trigger the watchdog by updating `.github/one-off-test.trigger` or launch it from **Actions → CS 1.6 self-healing session (GitHub-hosted)**. Choose 20 slots.
+After the one-time Playit secret, UDP tunnel, and Vercel `GITHUB_ACTIONS_TOKEN` setup, Vercel Schedules monitors the workflow every 10 minutes and starts a new session only when no active session exists.
 
 Follow the workflow logs. The run must show:
 - ReHLDS 3.15.0.896.

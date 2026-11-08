@@ -10,9 +10,16 @@ HLDS_DIR="$1"
 MAXPLAYERS="$2"
 LOG_FILE="$3"
 PLAYIT_LOG_FILE="$RUNNER_TEMP/playit-agent.log"
+SSH_CONFIG="$RUNNER_TEMP/sshd_config"
+SSH_PID_FILE="$RUNNER_TEMP/sshd.pid"
+SSH_PID=""
 
 if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
   echo "PLAYIT_SECRET_KEY is required." >&2
+  exit 2
+fi
+if [[ -z "${SSH_AUTHORIZED_KEYS:-}" || -z "${SSH_HOST_ED25519_PRIVATE_KEY:-}" ]]; then
+  echo "SSH_AUTHORIZED_KEYS and SSH_HOST_ED25519_PRIVATE_KEY Actions secrets are required." >&2
   exit 2
 fi
 
@@ -46,9 +53,19 @@ stop_server() {
   SERVER_PID=""
 }
 
+stop_ssh() {
+  if [[ -n "$SSH_PID" ]] && kill -0 "$SSH_PID" 2>/dev/null; then
+    kill "$SSH_PID" 2>/dev/null || true
+    wait "$SSH_PID" 2>/dev/null || true
+  fi
+  SSH_PID=""
+  rm -f "$SSH_PID_FILE"
+}
+
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
+  stop_ssh
   stop_server
   docker logs --tail 200 playit > "$PLAYIT_LOG_FILE" 2>&1 || true
   docker stop playit >/dev/null 2>&1 || true
@@ -148,8 +165,68 @@ start_playit_with_retry() {
   return 1
 }
 
+start_ssh() {
+  local ssh_user="csadmin"
+  if ! id "$ssh_user" >/dev/null 2>&1; then
+    sudo useradd --create-home --shell /bin/bash "$ssh_user"
+  fi
+
+  sudo install -d -m 0700 -o "$ssh_user" -g "$ssh_user" "/home/$ssh_user/.ssh"
+  printf '%s\\n' "$SSH_AUTHORIZED_KEYS" | sudo tee "/home/$ssh_user/.ssh/authorized_keys" >/dev/null
+  sudo chown "$ssh_user:$ssh_user" "/home/$ssh_user/.ssh/authorized_keys"
+  sudo chmod 0600 "/home/$ssh_user/.ssh/authorized_keys"
+
+  printf '%s\\n' "$SSH_HOST_ED25519_PRIVATE_KEY" | sudo tee /etc/ssh/ssh_host_ed25519_key >/dev/null
+  sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
+  sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key >/dev/null
+
+  sudo mkdir -p /run/sshd
+  cat > "$SSH_CONFIG" <<EOF
+Port 2222
+ListenAddress 127.0.0.1
+HostKey /etc/ssh/ssh_host_ed25519_key
+PidFile $SSH_PID_FILE
+AuthorizedKeysFile /home/$ssh_user/.ssh/authorized_keys
+AllowUsers $ssh_user
+PermitRootLogin no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM no
+AllowTcpForwarding no
+AllowAgentForwarding no
+X11Forwarding no
+PermitTunnel no
+MaxAuthTries 3
+LoginGraceTime 20
+ClientAliveInterval 30
+ClientAliveCountMax 3
+LogLevel VERBOSE
+EOF
+  sudo /usr/sbin/sshd -t -f "$SSH_CONFIG"
+  sudo /usr/sbin/sshd -f "$SSH_CONFIG"
+  SSH_PID="$(sudo cat "$SSH_PID_FILE")"
+  if ! kill -0 "$SSH_PID" 2>/dev/null; then
+    echo "SSH daemon failed to stay running." >&2
+    return 1
+  fi
+  echo "SSH daemon is listening on 127.0.0.1:2222 for key-only user csadmin."
+}
+
+start_ssh_with_retry() {
+  local attempt
+  for attempt in $(seq 1 5); do
+    if start_ssh; then return 0; fi
+    echo "Watchdog: SSH startup failed; retrying in 5 seconds."
+    sleep 5
+  done
+  return 1
+}
+
 start_server_with_retry
 start_playit_with_retry
+start_ssh_with_retry
 
 echo "Self-healing session active. The watchdog checks ReHLDS and Playit every 10 seconds."
 while (( SECONDS < DEADLINE )); do
@@ -167,6 +244,12 @@ while (( SECONDS < DEADLINE )); do
     fi
     sleep "$RESTART_DELAY"
     start_server_with_retry
+  fi
+
+  if [[ -z "$SSH_PID" ]] || ! kill -0 "$SSH_PID" 2>/dev/null; then
+    echo "Watchdog: SSH daemon stopped unexpectedly."
+    stop_ssh
+    start_ssh_with_retry
   fi
 
   playit_running="$(docker inspect -f '{{.State.Running}}' playit 2>/dev/null || true)"

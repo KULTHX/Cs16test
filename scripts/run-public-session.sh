@@ -54,7 +54,7 @@ stop_server() {
 }
 
 stop_ssh() {
-  if [[ -n "$SSH_PID" ]] && kill -0 "$SSH_PID" 2>/dev/null; then
+  if [[ -n "$SSH_PID" ]] && sudo kill -0 "$SSH_PID" 2>/dev/null; then
     sudo kill "$SSH_PID" 2>/dev/null || true
   fi
   SSH_PID=""

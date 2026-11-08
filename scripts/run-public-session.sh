@@ -219,6 +219,7 @@ AuthenticationMethods publickey
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 UsePAM no
+AllowTcpForwarding no
 AllowAgentForwarding no
 X11Forwarding no
 PermitTunnel no

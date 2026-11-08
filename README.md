@@ -21,22 +21,13 @@ This proves the engine and plugin stack can start on a GitHub-hosted Linux runne
 - **Playit:** forwards public UDP traffic to the runner's local `127.0.0.1:27015`.
 - **Vercel:** serves the public status page only. It does not run the game server.
 
-## Automatic six-hour sessions
+## Self-healing server session
 
-The workflow `.github/workflows/cs16-public-session.yml` starts a fresh session automatically four times per day:
-- 00:17 UTC
-- 06:17 UTC
-- 12:17 UTC
-- 18:17 UTC
+The workflow `.github/workflows/cs16-public-session.yml` uses an in-session watchdog, not a recurring schedule. Once triggered, it checks ReHLDS and the Playit agent every 10 seconds and restarts either process if it exits unexpectedly.
 
-Each run starts ReHLDS for up to **340 minutes (5 hours 40 minutes)** after setup. The GitHub-hosted job has a six-hour hard limit. The next scheduled run starts a fresh runner and reconnects the Playit agent. The first scheduled slot is 00:17 UTC, then 06:17, 12:17, and 18:17 UTC each day.
+The runner session is deliberately bounded to 5 hours 40 minutes, with the complete GitHub job capped at six hours. The watchdog can revive the game-server and tunnel processes while that runner is alive. It cannot resurrect a GitHub runner after GitHub ends the job or bypass GitHub's execution limit. A new session then needs a fresh authorized trigger.
 
-This is an experimental six-hour rotation, not guaranteed 24/7 uptime. Players disconnect when a session ends; the next runner needs time to install files and reconnect. GitHub documents that scheduled runs can be delayed or dropped during high load. The workflow deliberately stays within GitHub's execution limit and does not chain jobs to evade it.
-
-Official limits and scheduling behavior:
-- https://docs.github.com/en/actions/reference/limits
-- https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
-- https://docs.github.com/en/actions/how-tos/troubleshoot-workflows
+The watchdog starts once from a change to `.github/one-off-test.trigger` or by manual workflow dispatch. It does not continuously chain workflows or run on a timer.
 
 ## One-time Playit setup (required before public sessions)
 
@@ -55,7 +46,7 @@ Playit's official agent Docker instructions: https://github.com/playit-cloud/pla
 
 ## Start and monitor
 
-After adding `PLAYIT_SECRET_KEY` and configuring the UDP tunnel once, sessions start from the schedule automatically. A maintainer can also use **Actions → CS 1.6 public session (GitHub-hosted) → Run workflow** for an additional manual session.
+After adding `PLAYIT_SECRET_KEY` and configuring the UDP tunnel once, the watchdog can start from a change to `.github/one-off-test.trigger` or by using **Actions → CS 1.6 self-healing session (GitHub-hosted) → Run workflow**.
 
 A successful run must show:
 - ReHLDS version and GoldSrc protocol startup.

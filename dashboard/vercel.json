@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/watchdog.js": {
+      "maxDuration": 60,
+      "experimentalTriggers": [
+        { "type": "schedule/v1beta" }
+      ]
+    }
+  },
+  "schedules": {
+    "cs16-watchdog": {
+      "schedule": "*/10 * * * *",
+      "function": "api/watchdog.js",
+      "timezone": "UTC"
+    }
+  }
+}

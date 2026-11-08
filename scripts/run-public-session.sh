@@ -55,8 +55,7 @@ stop_server() {
 
 stop_ssh() {
   if [[ -n "$SSH_PID" ]] && kill -0 "$SSH_PID" 2>/dev/null; then
-    kill "$SSH_PID" 2>/dev/null || true
-    wait "$SSH_PID" 2>/dev/null || true
+    sudo kill "$SSH_PID" 2>/dev/null || true
   fi
   SSH_PID=""
   rm -f "$SSH_PID_FILE"
@@ -207,7 +206,7 @@ EOF
   sudo /usr/sbin/sshd -t -f "$SSH_CONFIG"
   sudo /usr/sbin/sshd -f "$SSH_CONFIG"
   SSH_PID="$(sudo cat "$SSH_PID_FILE")"
-  if ! kill -0 "$SSH_PID" 2>/dev/null; then
+  if ! sudo kill -0 "$SSH_PID" 2>/dev/null; then
     echo "SSH daemon failed to stay running." >&2
     return 1
   fi
@@ -246,7 +245,7 @@ while (( SECONDS < DEADLINE )); do
     start_server_with_retry
   fi
 
-  if [[ -z "$SSH_PID" ]] || ! kill -0 "$SSH_PID" 2>/dev/null; then
+  if [[ -z "$SSH_PID" ]] || ! sudo kill -0 "$SSH_PID" 2>/dev/null; then
     echo "Watchdog: SSH daemon stopped unexpectedly."
     stop_ssh
     start_ssh_with_retry

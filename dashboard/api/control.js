@@ -48,7 +48,7 @@ async function github(path, token, options = {}) {
 }
 
 async function getActiveRuns(token) {
-  const query = new URLSearchParams({ branch: BRANCH, per_page: "20" });
+  const query = new URLSearchParams({ branch: BRANCH, event: "workflow_dispatch", per_page: "20" });
   const data = await github(
     `actions/workflows/${encodeURIComponent(WORKFLOW)}/runs?${query.toString()}`,
     token

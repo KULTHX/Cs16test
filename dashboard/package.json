@@ -1,0 +1,8 @@
+{
+  "name": "cs16-community-status",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/schedules": "0.0.3"
+  }
+}

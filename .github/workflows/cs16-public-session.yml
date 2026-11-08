@@ -151,12 +151,18 @@ jobs:
           set -euo pipefail
           bash scripts/run-public-session.sh "$RUNNER_TEMP/hlds" "$MAXPLAYERS" "$RUNNER_TEMP/rehlds-session.log"
 
-      - name: Capture session logs and stop Playit agent
+      - name: Capture session logs and stop remaining tunnel containers
         if: always()
         run: |
           set +e
-          docker logs --tail 200 playit > "$RUNNER_TEMP/playit-agent.log" 2>&1
-          docker stop playit >/dev/null 2>&1
+          if docker inspect playit >/dev/null 2>&1; then
+            docker logs --tail 200 playit >> "$RUNNER_TEMP/playit-agent.log" 2>&1
+            docker stop playit >/dev/null 2>&1
+          fi
+          if docker inspect bore >/dev/null 2>&1; then
+            docker logs --tail 200 bore >> "$RUNNER_TEMP/bore.log" 2>&1
+            docker stop bore >/dev/null 2>&1
+          fi
           true
 
       - name: Upload server and tunnel logs

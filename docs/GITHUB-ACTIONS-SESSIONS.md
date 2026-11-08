@@ -98,10 +98,10 @@ pkg install -y openssh
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 ssh-keygen -t ed25519 -a 64 -f ~/.ssh/cs16_terminal -C "termux-cs16"
-ssh-keygen -t ed25519 -a 64 -f ~/.ssh/ssh_host_ed25519_key -C "cs16-runner-host"
+ssh-keygen -t ed25519 -a 64 -N "" -f ~/.ssh/ssh_host_ed25519_key -C "cs16-runner-host"
 ```
 
-Use a passphrase for the phone's client key. Do not share `~/.ssh/cs16_terminal` with anyone.
+Use a passphrase for the phone's client key. The host key uses no passphrase so the runner can start sshd unattended. Do not share `~/.ssh/cs16_terminal` with anyone.
 
 In GitHub **Settings → Secrets and variables → Actions**, add these two repository secrets:
 - `SSH_AUTHORIZED_KEYS`: paste the output of `cat ~/.ssh/cs16_terminal.pub`

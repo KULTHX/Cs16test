@@ -213,9 +213,13 @@ start_ssh() {
     sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
     sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key | sudo tee /etc/ssh/ssh_host_ed25519_key.pub >/dev/null
   else
-    sudo rm -f /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key.pub
-    sudo ssh-keygen -q -t ed25519 -N "" -f /etc/ssh/ssh_host_ed25519_key
-    echo "Generated a per-session SSH host key; login authorized keys remain unchanged."
+    if [[ ! -s /etc/ssh/ssh_host_ed25519_key ]]; then
+      sudo rm -f /etc/ssh/ssh_host_ed25519_key.pub
+      sudo ssh-keygen -q -t ed25519 -N "" -f /etc/ssh/ssh_host_ed25519_key
+      echo "Generated a per-session SSH host key; login authorized keys remain unchanged."
+    elif [[ ! -s /etc/ssh/ssh_host_ed25519_key.pub ]]; then
+      sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key | sudo tee /etc/ssh/ssh_host_ed25519_key.pub >/dev/null
+    fi
   fi
   sudo chmod 0600 /etc/ssh/ssh_host_ed25519_key
   SSH_HOST_FINGERPRINT="$(sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 | awk '{print $2}')"

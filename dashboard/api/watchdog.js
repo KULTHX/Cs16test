@@ -106,10 +106,5 @@ async function runWatchdog(metadata) {
   }));
 }
 
-const scheduledHandler = handleSchedule(runWatchdog);
-
-export default {
-  fetch(request) {
-    return scheduledHandler(request);
-  },
-};
+// Vercel Schedules delivers a private POST invocation to this function.
+export const POST = handleSchedule(runWatchdog);

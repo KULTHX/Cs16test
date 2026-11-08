@@ -9,21 +9,21 @@ This mode uses only:
 
 It does **not** use Oracle, a VPS, a home computer, or another permanent host.
 
-## Automatic six-hour session rotation
+## In-session watchdog (no schedule)
 
-The workflow `.github/workflows/cs16-public-session.yml` is scheduled four times per day at 00:17, 06:17, 12:17, and 18:17 UTC. Each run installs ReHLDS, starts the Playit agent, and holds the game session for up to 340 minutes (5 hours 40 minutes). The whole GitHub Actions job has a 360-minute timeout to leave room for setup. The next scheduled run starts on a fresh runner and reattaches the Playit agent.
+The workflow `.github/workflows/cs16-public-session.yml` does not use a cron schedule and does not chain new workflow runs. A single runner session starts ReHLDS and Playit, then checks both processes every 10 seconds. If the ReHLDS process exits, the watchdog attempts to start it again and waits for `Round_Start` plus ReUnion `RUN`. If the Playit container exits, the watchdog recreates it using the repository secret.
+
+The session is bounded to 5 hours 40 minutes, while the complete Actions job has a six-hour timeout. This allows automatic recovery from a child-process crash only while the GitHub runner remains alive. It cannot restart a job after GitHub ends the runner, overcome account or platform limits, or provide guaranteed 24/7 uptime. A fresh runner needs a new explicit trigger.
 
 ### Important GitHub limits
 
-- GitHub-hosted jobs have a maximum execution time of six hours. This workflow caps the session process at 340 minutes and the complete job at 360 minutes.
-- Scheduled events may be delayed during high load, and some queued events may be dropped.
-- Scheduled workflows in public repositories are automatically disabled after 60 days without repository activity.
-- The schedule is not an uptime guarantee. There can be a gap while a fresh runner installs the game files, and a missed schedule means the server remains offline until the next successful run. It does not immediately restart a failed run, and it does not chain workflows to evade GitHub's six-hour limit.
+- GitHub-hosted jobs have a maximum execution time of six hours; this workflow uses a 5-hour-40-minute session budget and a 360-minute job timeout.
+- The watchdog revives the ReHLDS and Playit processes within that session, not the GitHub runner or workflow itself.
+- No cron schedule or self-chaining workflow is configured.
 
 Official documentation:
 - Job execution limits: https://docs.github.com/en/actions/reference/limits
-- Scheduled workflow delays and behavior: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
-- Schedule troubleshooting: https://docs.github.com/en/actions/how-tos/troubleshoot-workflows
+- Workflow triggers: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
 
 ## One-time Playit setup
 
@@ -43,7 +43,7 @@ Official Playit Docker instructions: https://github.com/playit-cloud/playit-agen
 
 ## Start / monitor
 
-After the one-time Playit secret and UDP tunnel setup, the schedule starts sessions automatically. A maintainer may also launch an extra session from the Actions tab using **CS 1.6 public session (GitHub-hosted)**. Choose 20 slots.
+After the one-time Playit secret and UDP tunnel setup, trigger the watchdog by updating `.github/one-off-test.trigger` or launch it from **Actions → CS 1.6 self-healing session (GitHub-hosted)**. Choose 20 slots.
 
 Follow the workflow logs. The run must show:
 - ReHLDS 3.15.0.896.

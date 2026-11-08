@@ -13,6 +13,7 @@ async function getActiveRun() {
   if (!token) return null;
   const url = new URL(`https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW}/runs`);
   url.searchParams.set("branch", "main");
+  url.searchParams.set("event", "workflow_dispatch");
   url.searchParams.set("per_page", "10");
   const response = await fetch(url, {
     headers: {

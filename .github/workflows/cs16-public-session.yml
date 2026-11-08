@@ -52,6 +52,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl ca-certificates gpg unzip file openssl \
             lib32gcc-s1 lib32stdc++6 lib32z1 libc6:i386 libstdc++6:i386 openssh-server
+          # Disable the package's default public listener; the managed daemon binds only to loopback:2222.
+          sudo systemctl disable --now ssh.service ssh.socket 2>/dev/null || true
+          sudo pkill -x sshd 2>/dev/null || true
 
       - name: Download SteamCMD
         run: |

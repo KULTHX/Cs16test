@@ -48,6 +48,7 @@ jobs:
           grep -Fq '20400' scripts/run-public-session.sh
           python3 -m json.tool dashboard/vercel.json > /dev/null
           node --check dashboard/api/watchdog.js
+          grep -Fq 'export const POST = handleSchedule(runWatchdog)' dashboard/api/watchdog.js
           node --check dashboard/api/status.js
           node --check dashboard/api/control.js
           python3 -m json.tool dashboard/package.json > /dev/null

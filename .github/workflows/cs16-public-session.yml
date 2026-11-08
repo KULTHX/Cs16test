@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 360
     env:
       MAXPLAYERS: ${{ github.event.inputs.maxplayers || '20' }}
+      SSH_TAILSCALE_ENABLED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' && secrets.TS_OAUTH_SECRET != '' }}
 
     steps:
       - name: Check out server configuration
@@ -146,7 +147,7 @@ jobs:
       # Optional private SSH access from the owner's phone. If the Tailscale
       # credentials are absent, the game session still starts normally.
       - name: Join private Tailscale network for phone terminal access
-        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' && secrets.TS_OAUTH_SECRET != '' }}
+        if: ${{ env.SSH_TAILSCALE_ENABLED == 'true' }}
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}

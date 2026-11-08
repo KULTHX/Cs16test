@@ -4,8 +4,16 @@
     "api/watchdog.js": {
       "maxDuration": 60,
       "experimentalTriggers": [
-        { "type": "schedule/v1beta" }
+        {
+          "type": "schedule/v1beta"
+        }
       ]
+    },
+    "api/status.js": {
+      "maxDuration": 10
+    },
+    "api/control.js": {
+      "maxDuration": 15
     }
   },
   "schedules": {

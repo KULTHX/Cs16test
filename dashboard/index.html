@@ -67,6 +67,24 @@
         </div>
         <button id="copy-connect" class="copy-button" type="button" disabled>Copy connect</button>
       </div>
+      <section class="control-panel" aria-labelledby="control-heading">
+        <div class="control-heading">
+          <div>
+            <div class="section-kicker">ADMIN / SERVER CONTROLS</div>
+            <h2 id="control-heading">Manual test controls</h2>
+          </div>
+          <span class="control-lock">PROTECTED</span>
+        </div>
+        <label class="control-label" for="control-key">Admin control key</label>
+        <input id="control-key" class="control-input" type="password" autocomplete="off" placeholder="Enter the key configured in Vercel">
+        <div class="control-actions">
+          <button id="start-server" class="control-button start" type="button">Start server</button>
+          <button id="stop-server" class="control-button stop" type="button">Stop server</button>
+        </div>
+        <p class="control-hint">Stopping cancels the current GitHub session. The external watchdog should start a replacement at its next check. This is the recovery test.</p>
+        <div id="control-result" class="control-result" role="status">Control actions require the private admin key.</div>
+      </section>
+
       <div id="notice" class="notice" role="status">The local ReHLDS smoke test passed. Public hosting and external player connections have not been verified yet.</div>
       <div class="last-check">LAST STATUS UPDATE <span id="last-check">Not available</span></div>
     </section>

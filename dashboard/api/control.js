@@ -148,14 +148,18 @@ export default async function handler(request, response) {
         .filter(item => item.status === "rejected")
         .map(item => item.reason?.message || "Unknown GitHub cancellation error");
       if (!canceled) {
-        throw new Error(failures.join("; ") || "GitHub did not accept the cancellation request.");
+        // Preserve the original GitHub API error and its permission headers so
+        // the outer handler can explain whether Actions: write or org approval
+        // is missing. Wrapping it in a new Error discards those diagnostics.
+        const firstFailure = results.find(item => item.status === "rejected");
+        throw firstFailure?.reason || new Error("GitHub did not accept the cancellation request.");
       }
 
       return response.status(202).json({
         ok: true,
         action,
         canceled,
-        message: `GitHub accepted cancellation for ${canceled} active session(s). The watchdog will keep monitoring and respect this manual stop until you press Start.`
+        message: `GitHub accepted cancellation for ${canceled} active session(s). The watchdog will launch a replacement session at its next scheduled check.`
       });
     }
 

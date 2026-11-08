@@ -29,7 +29,12 @@ async function github(path, token, options = {}) {
   });
   if (!response.ok) {
     const text = (await response.text()).slice(0, 350);
-    throw new Error(`GitHub API ${response.status}: ${text}`);
+    const error = new Error(`GitHub API ${response.status}: ${text}`);
+    error.status = response.status;
+    error.acceptedPermissions = response.headers.get("x-accepted-github-permissions") || "";
+    error.oauthScopes = response.headers.get("x-oauth-scopes") || "";
+    error.sso = response.headers.get("x-github-sso") || "";
+    throw error;
   }
   // GitHub Actions cancellation commonly returns 202 with an empty body.
   // Do not treat that accepted cancellation as a JSON parsing failure.
@@ -49,6 +54,27 @@ async function getActiveRuns(token) {
     token
   );
   return (data.workflow_runs || []).filter(run => ACTIVE_STATES.has(run.status));
+}
+
+async function getSafeTokenDiagnostics(token) {
+  // Never log or return the token. Only identify the authenticated account and
+  // GitHub's permission/scope response headers.
+  const response = await fetch("https://api.github.com/user", {
+    headers: githubHeaders(token),
+    signal: AbortSignal.timeout(8000)
+  });
+  let account = null;
+  if (response.ok) {
+    const data = await response.json();
+    account = data.login || null;
+  }
+  return {
+    account,
+    authCheckStatus: response.status,
+    classicTokenScopes: response.headers.get("x-oauth-scopes") || null,
+    acceptedPermissions: response.headers.get("x-accepted-github-permissions") || null,
+    ssoHeaderPresent: Boolean(response.headers.get("x-github-sso"))
+  };
 }
 
 export default async function handler(request, response) {
@@ -136,6 +162,28 @@ export default async function handler(request, response) {
     return response.status(400).json({ message: "Action must be start or stop." });
   } catch (error) {
     console.error("Server control failed:", error?.message || error);
+
+    if (error?.status === 403 && /Resource not accessible by personal access token/i.test(error.message || "")) {
+      let diagnostics = null;
+      try {
+        diagnostics = await getSafeTokenDiagnostics(token);
+      } catch {
+        diagnostics = { authCheckStatus: "diagnostic request failed" };
+      }
+
+      const required = error.acceptedPermissions || "Actions repository permission: write (fine-grained PAT)";
+      const classicScopes = error.oauthScopes || diagnostics.classicTokenScopes || "not exposed (commonly a fine-grained token)";
+      return response.status(403).json({
+        message: "GitHub refused the cancellation request. The running deployment used GITHUB_ACTIONS_TOKEN, and GitHub rejected its authorization for this endpoint.",
+        requiredPermission: required,
+        classicTokenScopes: classicScopes,
+        tokenAccount: diagnostics.account || null,
+        tokenAuthCheck: diagnostics.authCheckStatus,
+        ssoAuthorizationHeaderPresent: Boolean(error.sso || diagnostics.ssoHeaderPresent),
+        nextCheck: "Confirm the exact token stored in Vercel belongs to KULTHX/Cs16test and is approved for the KULTHX organization. For a classic PAT it needs the repo scope; for a fine-grained PAT it needs Actions: write and organization approval if required."
+      });
+    }
+
     return response.status(502).json({ message: error?.message || "Server control request failed." });
   }
 }

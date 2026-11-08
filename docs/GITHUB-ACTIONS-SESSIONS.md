@@ -101,4 +101,4 @@ It currently reports `PREPARING` until a public session has been externally veri
 - Store the Playit secret only as the encrypted `PLAYIT_SECRET_KEY` repository secret.
 - The RCON password is generated randomly for each session and is not written to the repository.
 - The game server binds to `127.0.0.1:27015`; public game traffic should enter only through the Playit tunnel.
-- Optional SSH secrets are used only when Tailscale is connected; the SSH daemon binds exclusively to the runner's private Tailscale IP.
+- SSH is bound to localhost only and exposed through a separate Bore TCP tunnel; the Playit UDP tunnel remains dedicated to game traffic.

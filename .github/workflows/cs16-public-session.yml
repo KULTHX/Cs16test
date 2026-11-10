@@ -1,13 +1,12 @@
 name: CS 1.6 self-healing session (GitHub-hosted)
 
 on:
-  # Apply server.cfg / FastDL changes by queueing one replacement session.
-  # The concurrency group keeps it behind any currently active session.
+  # Replace the running session immediately when its launch script changes.
   push:
     branches: [main]
     paths:
       - '.github/workflows/cs16-public-session.yml'
-      - 'config/server.cfg.example'
+      - 'scripts/run-public-session.sh'
   # The Vercel watchdog dispatches a fresh run only when no session is active.
   workflow_dispatch:
     inputs:
@@ -25,7 +24,7 @@ permissions:
 
 concurrency:
   group: cs16-public-session
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   public-session:

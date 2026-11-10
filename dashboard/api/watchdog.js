@@ -42,7 +42,7 @@ async function runWatchdog(metadata) {
     throw new Error("Missing GITHUB_ACTIONS_TOKEN in Vercel Production environment.");
   }
 
-  const query = new URLSearchParams({ branch: BRANCH, event: "workflow_dispatch", per_page: "20" });
+  const query = new URLSearchParams({ branch: BRANCH, per_page: "20" });
   const data = await githubRequest(
     `actions/workflows/${encodeURIComponent(WORKFLOW)}/runs?${query.toString()}`,
     token,

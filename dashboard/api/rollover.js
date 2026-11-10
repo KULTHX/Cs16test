@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 const OWNER = "KULTHX";
 const REPO = "Cs16test";
 const WORKFLOW = "cs16-public-session.yml";
+// One-time protected rollover endpoint. Remove after the corrected session is dispatched.
 const ACTIVE = new Set(["queued", "in_progress", "waiting", "requested", "pending"]);
 
 function safeEqual(left, right) {

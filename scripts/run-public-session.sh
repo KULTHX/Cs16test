@@ -134,8 +134,13 @@ start_server() {
     if tail -n +"$line_start" "$LOG_FILE" | grep -Eiq 'World triggered "Round_Start"'; then
       # Use the actual Metamod module-load line; "meta list" is not reliably
       # emitted from HLDS +command arguments on headless runners.
-      if tail -n +"$line_start" "$LOG_FILE" | grep -Eiq "\\[META\\] dll: Loaded plugin .Reunion."; then
-        echo "ReHLDS reached Round_Start and Metamod loaded ReUnion."
+      if tail -n +"$line_start" "$LOG_FILE" | grep -Eiq "\\[META\\] dll: Loaded plugin .Reunion." \
+        && tail -n +"$line_start" "$LOG_FILE" | grep -Fq 'CS GameRules RestartRound hold hook registered successfully' \
+        && tail -n +"$line_start" "$LOG_FILE" | grep -Fq '[NECROHAZARD Map Vote] v1.15 loaded' \
+        && tail -n +"$line_start" "$LOG_FILE" | grep -Fq '[FREX Round End] v1.3 loaded' \
+        && tail -n +"$line_start" "$LOG_FILE" | grep -Eiq 'Server cvar "mp_startmoney" = "150"' \
+        && tail -n +"$line_start" "$LOG_FILE" | grep -Eiq 'Server cvar "mp_timelimit" = "0"'; then
+        echo "ReHLDS, ReUnion, ReGameDLL, Zombie Plague money, map vote and round control are ready."
         return 0
       fi
     fi

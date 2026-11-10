@@ -39,6 +39,28 @@ jobs:
       - name: Validate example server configuration
         run: bash scripts/validate-config.sh config/server.cfg.example
 
+      - name: Verify GoldSrc FastDL sends fixed-length HTTP bodies
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_fastdl() {
+            local url="$1" headers code
+            headers="$(mktemp)"
+            code="$(curl --fail --silent --show-error --http1.1 --location \
+              --dump-header "$headers" --output /dev/null --write-out '%{http_code}' "$url")"
+            test "$code" = "200"
+            grep -Eiq '^content-length: [1-9][0-9]*' "$headers"
+            if grep -Eiq '^transfer-encoding:.*chunked' "$headers"; then
+              echo "ERROR: FastDL response used chunked transfer encoding: $url" >&2
+              cat "$headers" >&2
+              exit 1
+            fi
+            rm -f "$headers"
+            echo "FastDL fixed-length response OK: $url"
+          }
+          check_fastdl "https://raw.githubusercontent.com/KULTHX/Cs16test/main/dashboard/fastdl/cstrike/models/csgo/v_ak47.mdl"
+          check_fastdl "https://raw.githubusercontent.com/KULTHX/Cs16test/main/dashboard/fastdl/cstrike/sound/zombie_plague/zaphie/countdown/9.wav"
+
       - name: Validate dashboard status JSON
         run: python3 -m json.tool dashboard/status.json > /dev/null
 

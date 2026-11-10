@@ -35,7 +35,7 @@ The installer:
 
 Type 3 generates a Steam-style ID from the connecting IP. Multiple users behind the same NAT may share an identity. The installer sets `IDClientsLimit = 0` so those users are not blocked by the same-ID connection limit. This has implications for identity-based bans and moderation. Keep the generated salt stable within a session/data set.
 
-After startup, verify the plugin list with `meta list`. ReUnion should show status `RUN`. This was confirmed in the GitHub Actions smoke test on 2026-11-07; the command is queued in `server.cfg` so it runs after map initialization.
+After startup, verify the plugin list with `meta list`. ReUnion should show status `RUN`. The smoke-test workflow invokes `meta list` from the HLDS startup command queue; the public-session workflow checks that ReUnion reports `RUN` before declaring the server ready.
 
 ## Start a public GitHub-hosted session
 

@@ -132,8 +132,10 @@ start_server() {
 
   for attempt in $(seq 1 90); do
     if tail -n +"$line_start" "$LOG_FILE" | grep -Eiq 'World triggered "Round_Start"'; then
-      if tail -n +"$line_start" "$LOG_FILE" | grep -Eiq 'Reunion[[:space:]]+RUN'; then
-        echo "ReHLDS reached Round_Start and ReUnion reports RUN."
+      # Use the actual Metamod module-load line; "meta list" is not reliably
+      # emitted from HLDS +command arguments on headless runners.
+      if tail -n +"$line_start" "$LOG_FILE" | grep -Eiq "\\[META\\] dll: Loaded plugin .Reunion."; then
+        echo "ReHLDS reached Round_Start and Metamod loaded ReUnion."
         return 0
       fi
     fi

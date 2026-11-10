@@ -29,6 +29,13 @@ jobs:
           bash -n scripts/install-reunion.sh
           bash -n scripts/run-public-session.sh
 
+      - name: Test Zombie Plague FastDL export and map rotation
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/export-necrohazard-fastdl.py scripts/test-export-necrohazard-fastdl.py
+          python3 scripts/test-export-necrohazard-fastdl.py
+          bash -n scripts/run-public-session.sh
+
       - name: Validate example server configuration
         run: bash scripts/validate-config.sh config/server.cfg.example
 

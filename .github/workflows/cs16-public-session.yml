@@ -155,6 +155,8 @@ jobs:
             echo "FastDL is already up to date."
           else
             git commit -m "Publish NECROHAZARD Zombie Plague FastDL assets"
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
 

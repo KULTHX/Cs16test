@@ -4,7 +4,6 @@ const OWNER = "KULTHX";
 const REPO = "Cs16test";
 const WORKFLOW = "cs16-public-session.yml";
 const BRANCH = "main";
-const CURRENT_MOD_COMMIT = "e0b52a567bab65835e1a55562246fc940e760137";
 const ACTIVE = new Set(["queued", "in_progress", "waiting", "requested", "pending"]);
 
 function safeEqual(left, right) {
@@ -52,10 +51,14 @@ export default async function handler(request, response) {
   if (!token) return response.status(503).json({ message: "Missing GitHub Actions token." });
 
   try {
+    const latestCommit = await github("commits/main", token);
+    const currentCommit = latestCommit?.sha;
+    if (!currentCommit) throw new Error("Could not determine the latest main commit.");
+
     const params = new URLSearchParams({ branch: BRANCH, event: "workflow_dispatch", per_page: "20" });
     const data = await github(`actions/workflows/${encodeURIComponent(WORKFLOW)}/runs?${params.toString()}`, token);
     const active = (data?.workflow_runs || []).filter(run => ACTIVE.has(run.status));
-    const current = active.find(run => run.head_sha === CURRENT_MOD_COMMIT);
+    const current = active.find(run => run.head_sha === currentCommit);
 
     if (current) {
       return response.status(200).json({
@@ -82,7 +85,7 @@ export default async function handler(request, response) {
       ok: true,
       action: "restart",
       cancelled,
-      requestedCommit: CURRENT_MOD_COMMIT,
+      requestedCommit: currentCommit,
       message: "Old session cancellation accepted; a fresh Zombie Plague session was dispatched."
     });
   } catch (error) {

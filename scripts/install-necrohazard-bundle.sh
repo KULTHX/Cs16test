@@ -43,7 +43,7 @@ if ! awk '
   echo "ERROR: archive contains an absolute or parent-traversal path" >&2
   exit 1
 fi
-if grep -Eq '(^|/)(server\\.cfg|liblist\\.gam|reunion\\.cfg|hlds_run|engine_i486\\.so)$|(^|/)addons/(metamod|reunion)/' "$WORK_DIR/archive.list"; then
+if grep -Eq '(^|/)(server\.cfg|liblist\.gam|reunion\.cfg|hlds_run|engine_i486\.so)$|(^|/)addons/(metamod|reunion)/' "$WORK_DIR/archive.list"; then
   echo "ERROR: bundle attempts to replace protected engine, server, Metamod, or ReUnion files" >&2
   exit 1
 fi

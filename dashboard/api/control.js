@@ -85,7 +85,9 @@ export default async function handler(request, response) {
 
   const configuredKeys = [
     process.env.SERVER_CONTROL_SECRET,
-    process.env.MANUS_CONTROL_SECRET
+    process.env.MANUS_CONTROL_SECRET,
+    process.env.ROLLOVER_TRIGGER_KEY,
+    process.env.MANUS_ONCE_CONTROL
   ].filter((key) => typeof key === "string" && key.length > 0);
   const suppliedKey = request.headers.authorization?.replace(/^Bearer\s+/i, "") || "";
   const authorized = configuredKeys.some((key) => safeEqual(suppliedKey, key));

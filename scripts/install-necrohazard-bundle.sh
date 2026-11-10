@@ -55,11 +55,20 @@ tar --zstd -xf "$BUNDLE" -C "$HLDS_DIR"
 META_PLUGINS="$HLDS_DIR/cstrike/addons/metamod/plugins.ini"
 mkdir -p "$(dirname "$META_PLUGINS")"
 touch "$META_PLUGINS"
+# ReAPI is an AMX Mod X module, not a Metamod plugin. Loading its AMXX module
+# from Metamod as well causes a duplicate-plugin ERROR during server startup.
+sed -i -E '/reapi_amxx_i386\.so/Id' "$META_PLUGINS"
 for line in \
   'linux addons/amxmodx/dlls/amxmodx_mm_i386.so' \
   'linux addons/yapb/bin/yapb.so'; do
   grep -Fqx "$line" "$META_PLUGINS" || printf '%s\n' "$line" >> "$META_PLUGINS"
 done
+if grep -Eiq 'reapi_amxx_i386\.so' "$META_PLUGINS"; then
+  echo "ERROR: ReAPI must not be registered as a Metamod plugin." >&2
+  exit 1
+fi
+# YaPB writes its path matrix here on first launch; ensure the directory exists.
+mkdir -p "$HLDS_DIR/cstrike/addons/yapb/data/train"
 
 [[ -f "$HLDS_DIR/cstrike/addons/amxmodx/dlls/amxmodx_mm_i386.so" ]] \
   || { echo "ERROR: AMX Mod X Metamod binary is missing after overlay" >&2; exit 1; }

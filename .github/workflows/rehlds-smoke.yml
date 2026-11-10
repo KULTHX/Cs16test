@@ -130,14 +130,6 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare loopback-only test configuration
-        run: |
-          sed -E 's/^sv_lan[[:space:]]+0$/sv_lan 1/' \
-            config/server.cfg.example > "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-          # ReUnion's own README instructs running "meta list" after the server
-          # has started; server.cfg is executed after the map initializes.
-          printf '\nmeta list\n' >> "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-
       - name: Start ReHLDS for a short local smoke test
         env:
           MAXPLAYERS: "20"
@@ -148,7 +140,7 @@ jobs:
           set +e
           timeout --signal=TERM --kill-after=5s 45s \
             ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
-            +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +version +sv_lan 1 \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +version +sv_lan 1 +meta list \
             > "$LOG_FILE" 2>&1
           STATUS=$?
           set -e

@@ -10,6 +10,7 @@ public 1
 // FastDL is served by the same Vercel project without changing the dashboard APIs.
 sv_downloadurl "https://cs16-community-status.vercel.app/fastdl/cstrike/"
 sv_allowdownload 1
+mapcyclefile "mapcycle.txt"
 sv_allowupload 0
 
 // Basic server behavior.

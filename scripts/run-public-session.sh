@@ -107,10 +107,22 @@ start_server() {
   fi
 
   line_start=$(( $(wc -l < "$LOG_FILE") + 1 ))
-  echo "Starting ReHLDS on 127.0.0.1:27015 with $MAXPLAYERS slots; $remaining seconds remain."
+  local start_map candidate
+  start_map="de_dust2"
+  if [[ -f "$HLDS_DIR/cstrike/mapcycle.txt" ]]; then
+    while IFS= read -r candidate; do
+      candidate="${candidate%%#*}"
+      candidate="${candidate//[[:space:]]/}"
+      if [[ "$candidate" =~ ^[A-Za-z0-9_]+$ && -f "$HLDS_DIR/cstrike/maps/$candidate.bsp" ]]; then
+        start_map="$candidate"
+        break
+      fi
+    done < "$HLDS_DIR/cstrike/mapcycle.txt"
+  fi
+  echo "Starting ReHLDS on 127.0.0.1:27015 with $MAXPLAYERS slots on $start_map; $remaining seconds remain."
   setsid timeout --signal=TERM --kill-after=30s "${remaining}s" \
     ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
-    +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +sv_lan 0 \
+    +maxplayers "$MAXPLAYERS" +map "$start_map" +mapcyclefile mapcycle.txt +log on +mp_logecho 1 +sv_lan 0 \
     >> "$LOG_FILE" 2>&1 &
   SERVER_PID=$!
 

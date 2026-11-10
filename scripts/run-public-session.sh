@@ -40,6 +40,8 @@ case "$MAXPLAYERS" in
 esac
 
 cd "$HLDS_DIR"
+# Intentionally remove the generated/base server.cfg so it cannot override Zombie Plague settings.
+rm -f "$HLDS_DIR/cstrike/server.cfg"
 export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
 : > "$LOG_FILE"
 : > "$PLAYIT_LOG_FILE"
@@ -122,7 +124,9 @@ start_server() {
   echo "Starting ReHLDS on 127.0.0.1:27015 with $MAXPLAYERS slots on $start_map; $remaining seconds remain."
   setsid timeout --signal=TERM --kill-after=30s "${remaining}s" \
     ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
-    +maxplayers "$MAXPLAYERS" +map "$start_map" +mapcyclefile mapcycle.txt +log on +mp_logecho 1 +sv_lan 0 \
+    +maxplayers "$MAXPLAYERS" +map "$start_map" +mapcyclefile mapcycle.txt +log on +mp_logecho 1 \
+    +hostname "CS 1.6 Public Test Server" +sv_lan 0 +sv_allowdownload 1 \
+    +sv_downloadurl "https://raw.githubusercontent.com/KULTHX/Cs16test/main/dashboard/fastdl/cstrike/" \
     >> "$LOG_FILE" 2>&1 &
   SERVER_PID=$!
 

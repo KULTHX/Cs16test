@@ -23,5 +23,11 @@
       "function": "api/watchdog",
       "timezone": "UTC"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/fastdl/cstrike/models/csgo/:filename",
+      "destination": "/fastdl/cstrike/models/csgo_:filename"
+    }
+  ]
 }

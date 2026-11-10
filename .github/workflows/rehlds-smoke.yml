@@ -9,6 +9,8 @@ on:
       - ".github/workflows/rehlds-smoke.yml"
       - "scripts/install-rehlds.sh"
       - "scripts/install-reunion.sh"
+      - "scripts/install-necrohazard-bundle.sh"
+      - "scripts/install-regamedll.sh"
   workflow_dispatch:
     inputs:
       maxplayers:

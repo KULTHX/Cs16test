@@ -140,7 +140,7 @@ jobs:
           set +e
           timeout --signal=TERM --kill-after=5s 45s \
             ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
-            +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +version +sv_lan 1 +meta list \
+            +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +version +sv_lan 1 \
             > "$LOG_FILE" 2>&1
           STATUS=$?
           set -e
@@ -167,8 +167,10 @@ jobs:
           grep -Eiq 'Server logging data to file' "$LOG_FILE" \
             || { echo "ERROR: The game server did not initialize server logging." >&2; exit 1; }
           grep -Eiq 'World triggered "Round_Start"' "$LOG_FILE" \
-            || { echo "ERROR: The game did not reach the first round." >&2; exit 1; }
-          grep -Eiq '\[[[:space:]]*[0-9]+\][[:space:]]+Reunion[[:space:]]+RUN' "$LOG_FILE" \
+          if ! grep -Eiq "\\[META\\] dll: Loaded plugin .Reunion." "$LOG_FILE"; then
+            echo "ERROR: Metamod-R did not load the ReUnion plugin." >&2
+            exit 1
+          fi
             || { echo "ERROR: ReUnion did not appear as RUN in the post-map meta list output." >&2; exit 1; }
 
           echo "ReHLDS, Metamod-R, and ReUnion verified; the GoldSrc server loaded the map and reached Round_Start."

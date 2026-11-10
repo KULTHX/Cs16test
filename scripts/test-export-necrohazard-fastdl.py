@@ -32,9 +32,11 @@ with tempfile.TemporaryDirectory(prefix="fastdl-test-") as temp:
     (cstrike / "sound" / "necro" / "count9.wav").write_bytes(b"countdown-sound")
     (cstrike / "models").mkdir()
     (cstrike / "models" / "zp_test.mdl").write_bytes(b"custom-model")
-    (cstrike / "addons" / "amxmodx" / "scripting" / "countdown.sma").write_text(
-        'precache_sound("necro/count9.wav");\n', encoding="utf-8"
+    (cstrike / "addons" / "amxmodx" / "plugins").mkdir(parents=True)
+    (cstrike / "addons" / "amxmodx" / "plugins" / "countdown.amxx").write_bytes(
+        b"compiled-plugin\x00sound/necro/count9.wav\x00"
     )
+
     module.publish(cstrike, manifest, fastdl, report)
 
     assert (fastdl / "maps" / "zm_survival.bsp").read_bytes() == b"custom-map"

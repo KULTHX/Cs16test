@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOTS = ("gfx", "maps", "models", "sound", "sprites", "resource")
 REF_RE = re.compile(r"""["']([^"' \r\n<>]+?\.(?:wav|mp3|ogg|mdl|spr|tga|bmp))["']""", re.I)
+BINARY_AUDIO_RE = re.compile(rb"[A-Za-z0-9_./-]+\.(?:wav|mp3|ogg)", re.I)
 TEXT_EXTS = {".sma", ".inc", ".ini", ".cfg", ".txt", ".json"}
 
 def fail(message):
@@ -116,6 +117,33 @@ def publish(cstrike, baseline_path, fastdl, report):
                 sha256(client_file.resolve()),
                 copy_asset(client_file.resolve(), "sound/" + rel, fastdl)
             )
+
+    # Compiled AMXX bytecode preserves literal paths passed to precache_sound/emit_sound.
+    plugin_dir = cstrike / "addons" / "amxmodx" / "plugins"
+    if plugin_dir.exists():
+        for plugin in sorted(plugin_dir.glob("*.amxx")):
+            try:
+                if plugin.stat().st_size > 20_000_000:
+                    continue
+                raw_plugin = plugin.read_bytes()
+            except OSError:
+                continue
+            for match in BINARY_AUDIO_RE.findall(raw_plugin):
+                raw = match.decode("ascii", errors="ignore").replace("\\", "/").lstrip("./")
+                rel = raw[6:] if raw.lower().startswith("sound/") else raw
+                if not rel:
+                    continue
+                audio_refs.add(rel)
+                client_file = cstrike / "sound" / rel
+                if not client_file.is_file():
+                    valve_file = cstrike.parent / "valve" / "sound" / rel
+                    if not valve_file.is_file():
+                        missing_audio.add(rel)
+                    continue
+                copied["sound/" + rel] = (
+                    sha256(client_file.resolve()),
+                    copy_asset(client_file.resolve(), "sound/" + rel, fastdl)
+                )
 
     new_maps = sorted(
         Path(rel).stem for rel, src in current

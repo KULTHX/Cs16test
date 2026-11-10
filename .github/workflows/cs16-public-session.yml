@@ -142,6 +142,13 @@ jobs:
           set -euo pipefail
           bash scripts/install-reunion.sh "$RUNNER_TEMP/hlds"
 
+      - name: Install official ReGameDLL_CS GameDLL
+        env:
+          REGAMEDLL_VERSION: 5.30.0.814
+        run: |
+          set -euo pipefail
+          bash scripts/install-regamedll.sh "$RUNNER_TEMP/hlds"
+
       - name: Export NECROHAZARD maps, models, sprites, and sounds to FastDL
         run: |
           set -euo pipefail

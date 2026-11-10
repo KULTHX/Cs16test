@@ -14,9 +14,6 @@
     },
     "api/control.js": {
       "maxDuration": 15
-    },
-    "api/rollover.js": {
-      "maxDuration": 60
     }
   },
   "schedules": {

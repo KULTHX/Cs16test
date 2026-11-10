@@ -178,7 +178,7 @@ def publish(cstrike, baseline_path, fastdl, report):
             map_txt = cstrike / "maps" / (map_name + ".txt")
             if not map_txt.exists():
                 map_txt.write_text(
-                    f"NECROHAZARD Zombie Plague\\n{map_name}\\n",
+                    f"NECROHAZARD Zombie Plague\n{map_name}\n",
                     encoding="utf-8"
                 )
             copied["maps/" + map_name + ".txt"] = (

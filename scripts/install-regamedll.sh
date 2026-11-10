@@ -48,13 +48,16 @@ fi
 install -m 0755 "$SOURCE/dlls/cs.so" "$TARGET/dlls/cs.so"
 install -m 0644 "$SOURCE/delta.lst" "$TARGET/delta.lst"
 
-# Do not seed game.cfg/game_init.cfg defaults: NECROHAZARD owns its gameplay CVars.
-# Existing mod-specific copies, if any, are left untouched.
-for cfg in game.cfg game_init.cfg; do
-  if [[ -s "$TARGET/$cfg" ]]; then
-    echo "Preserving existing cstrike/$cfg"
-  fi
-done
+# NECROHAZARD Map Vote waits 30 minutes; prevent ReGameDLL's default 20-minute
+# map timer from changing maps before the plugin can open its vote.
+GAME_CFG="$TARGET/game.cfg"
+touch "$GAME_CFG"
+sed -i -E '/^[[:space:]]*mp_timelimit[[:space:]]+/d' "$GAME_CFG"
+printf '\nmp_timelimit 0\n' >> "$GAME_CFG"
+grep -Eq '^[[:space:]]*mp_timelimit[[:space:]]+0([[:space:]]|$)' "$GAME_CFG" \
+  || fail "Could not enforce mp_timelimit 0 for the 30-minute Zombie Plague map vote."
+
+# Preserve any existing game_init.cfg; do not seed other default gameplay settings.
 
 [[ -s "$TARGET/dlls/cs.so" ]] || fail "ReGameDLL GameDLL was not installed."
 grep -Eq '^[[:space:]]*gamedll_linux[[:space:]]+"addons/metamod/metamod_i386\.so"' \

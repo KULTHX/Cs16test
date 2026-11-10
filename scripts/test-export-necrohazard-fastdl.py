@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory(prefix="fastdl-test-") as temp:
     module.snapshot(cstrike, manifest)
 
     (cstrike / "maps" / "zm_survival.bsp").write_bytes(
-        b"custom-map\\x00sound/gamepack/levels/westwood/tone_alley.wav\\x00"
+        b"custom-map\x00sound/gamepack/levels/westwood/tone_alley.wav\x00"
     )
     (cstrike / "sound" / "gamepack" / "levels" / "westwood").mkdir(parents=True)
     (cstrike / "sound" / "gamepack" / "levels" / "westwood" / "tone_alley.wav").write_bytes(

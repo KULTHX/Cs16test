@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate configuration and scripts
+    name: Validate scripts and FastDL
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -23,7 +23,6 @@ jobs:
 
       - name: Validate shell syntax
         run: |
-          bash -n scripts/validate-config.sh
           bash -n scripts/install-base-hlds.sh
           bash -n scripts/install-rehlds.sh
           bash -n scripts/install-reunion.sh
@@ -35,9 +34,6 @@ jobs:
           python3 -m py_compile scripts/export-necrohazard-fastdl.py scripts/test-export-necrohazard-fastdl.py
           python3 scripts/test-export-necrohazard-fastdl.py
           bash -n scripts/run-public-session.sh
-
-      - name: Validate example server configuration
-        run: bash scripts/validate-config.sh config/server.cfg.example
 
       - name: Verify GoldSrc FastDL sends fixed-length HTTP bodies
         shell: bash
@@ -76,6 +72,9 @@ jobs:
           grep -Fq 'ghcr.io/playit-cloud/playit-agent:1.0' scripts/run-public-session.sh
           grep -Fq 'docker inspect' scripts/run-public-session.sh
           grep -Fq '20400' scripts/run-public-session.sh
+          grep -Fq 'rm -f "$HLDS_DIR/cstrike/server.cfg"' scripts/run-public-session.sh
+          grep -Fq '+sv_downloadurl' scripts/run-public-session.sh
+          ! grep -Fq 'server.cfg.example' .github/workflows/cs16-public-session.yml
           grep -Fq 'config/ssh/authorized_keys' scripts/run-public-session.sh
           grep -Fq 'ListenAddress 127.0.0.1' scripts/run-public-session.sh
           grep -Fq 'AllowTcpForwarding no' scripts/run-public-session.sh

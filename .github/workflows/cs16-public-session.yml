@@ -24,7 +24,8 @@ permissions:
 
 concurrency:
   group: cs16-public-session
-  cancel-in-progress: true
+  # Keep the currently running public game server alive when a new commit is pushed.
+  cancel-in-progress: false
 
 jobs:
   public-session:

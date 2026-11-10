@@ -33,7 +33,7 @@ ACTUAL="$(sha256sum "$BUNDLE" | awk '{print $1}')"
 zstd -t "$BUNDLE"
 tar --zstd -tf "$BUNDLE" > "$WORK_DIR/archive.list"
 if ! awk '
-  /^\\// { bad=1 }
+  /^\// { bad=1 }
   {
     n=split($0, part, "/")
     for (i=1; i<=n; i++) if (part[i] == "..") bad=1

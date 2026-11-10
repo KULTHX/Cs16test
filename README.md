@@ -104,9 +104,9 @@ The page is live and currently reports `PREPARING`. It will remain that way unti
 
 ## Repository layout
 
+No custom `server.cfg` is generated or retained at runtime. Core public/FastDL cvars are passed directly to the HLDS launch command so the mod's own settings are not overridden.
+
 ```text
-config/
-  server.cfg.example
 dashboard/
   index.html
   styles.css

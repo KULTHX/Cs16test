@@ -1,6 +1,6 @@
 NECROHAZARD FastDL export report
-Copied/new/changed client files: 1115
-Total published bytes: 478072030
+Copied/new/changed client files: 1053
+Total published bytes: 477952750
 New custom BSP maps: 3
 
 MAP ROTATION:
@@ -8,14 +8,16 @@ toxic_house_ds_v33
 westwood_ds_v16
 zm_laura
 
-AUDIO REFERENCES FOUND IN AMXX SOURCE/CONFIG:
+AUDIO REFERENCES FOUND IN MOD SOURCE, PLUGINS, AND BSP MAPS:
 %s.wav
 %s/%d.wav
 agrunt/ag_die2.wav
 agrunt/ag_die3.wav
 agrunt/ag_die5.wav
 ambience/3dmstart.wav
+ambience/Guit1.WAV
 ambience/Opera.wav
+ambience/flies.wav
 ambience/the_horror1.wav
 ambience/the_horror2.wav
 ambience/the_horror3.wav
@@ -29,6 +31,7 @@ common/wpn_select.wav
 controller/con_pain1.wav
 controller/con_pain2.wav
 controller/con_pain3.wav
+de_torn/torn_ambience.wav
 debris/beamstart9.wav
 debris/bustglass1.wav
 debris/bustglass2.wav
@@ -37,6 +40,7 @@ debris/flesh%i.wav
 debris/glass%i.wav
 debris/metal%i.wav
 debris/wood%i.wav
+gamepack/levels/westwood/tone_alley.wav
 items/9mmclip1.wav
 items/flashlight1.wav
 items/gunpickup2.wav
@@ -250,6 +254,7 @@ zombie_plague/zombie_pain5.wav
 AUDIO FILES MISSING FROM CSTRIKE AND VALVE SOUND:
 %s.wav
 %s/%d.wav
+ambience/Guit1.WAV
 buttons/button14.wav
 buttons/combine_button7.wav
 debris/concrete%i.wav
@@ -257,6 +262,7 @@ debris/flesh%i.wav
 debris/glass%i.wav
 debris/metal%i.wav
 debris/wood%i.wav
+gamepack/levels/westwood/tone_alley.wav
 necro/distant_gunfire_ambience.mp3
 necro_louder/%d.wav
 player/pl_shell%i.wav
@@ -499,12 +505,12 @@ gfx/env/waterworld15rt.bmp (66614 bytes)
 gfx/env/waterworld15rt.tga (196626 bytes)
 gfx/env/waterworld15up.bmp (66614 bytes)
 gfx/env/waterworld15up.tga (196626 bytes)
-gfx/shell/kb_act.lst (2536 bytes)
-gfx/shell/kb_def.lst (1261 bytes)
 maps/toxic_house_ds_v33.bsp (4306217 bytes)
 maps/toxic_house_ds_v33.res (138 bytes)
+maps/toxic_house_ds_v33.txt (45 bytes)
 maps/westwood_ds_v16.bsp (3896429 bytes)
 maps/westwood_ds_v16.res (132 bytes)
+maps/westwood_ds_v16.txt (42 bytes)
 maps/ze_base.ent (34859 bytes)
 maps/zm_laura.bsp (2230704 bytes)
 maps/zm_laura.res (280 bytes)
@@ -1047,34 +1053,6 @@ models/zombie_plague/v_tripmine_spitter_l4d2_v8.mdl.bz2 (741224 bytes)
 models/zombie_plague/v_tripmine_spitter_l4d2_v9.mdl (741224 bytes)
 models/zombie_plague/v_tripmine_spitter_l4d2_v9.mdl.bz2 (741224 bytes)
 models/zombie_plague/v_zombiehands_realistic_uvazquez.mdl (169052 bytes)
-resource/ClientScheme.res (20125 bytes)
-resource/CreateMultiplayerGameGameplayPage.res (1660 bytes)
-resource/CreateMultiplayerGameServerPage.res (4080 bytes)
-resource/GameMenu.res (776 bytes)
-resource/OptionsSubMultiplayer.res (11206 bytes)
-resource/UI/BackgroundPanel.res (2241 bytes)
-resource/UI/BottomSpectator.res (1940 bytes)
-resource/UI/BuyEquipment.res (3466 bytes)
-resource/UI/BuyEquipment_CT.res (4585 bytes)
-resource/UI/BuyEquipment_TER.res (3767 bytes)
-resource/UI/BuyMachineguns_CT.res (1733 bytes)
-resource/UI/BuyMachineguns_TER.res (1754 bytes)
-resource/UI/BuyMenu.res (550 bytes)
-resource/UI/BuyPistols_CT.res (3328 bytes)
-resource/UI/BuyPistols_TER.res (3275 bytes)
-resource/UI/BuyRifles_CT.res (3725 bytes)
-resource/UI/BuyRifles_TER.res (3734 bytes)
-resource/UI/BuyShotguns_CT.res (2078 bytes)
-resource/UI/BuyShotguns_TER.res (2135 bytes)
-resource/UI/BuySubMachineguns_CT.res (2905 bytes)
-resource/UI/BuySubMachineguns_TER.res (2927 bytes)
-resource/UI/Classmenu_CT.res (4295 bytes)
-resource/UI/Classmenu_TER.res (4319 bytes)
-resource/UI/MOTD.res (1290 bytes)
-resource/UI/MainBuyMenu.res (5779 bytes)
-resource/UI/ScoreBoard.res (916 bytes)
-resource/UI/Spectator.res (3946 bytes)
-resource/UI/Teammenu.res (3690 bytes)
 resource/maphtml/default.html (896 bytes)
 resource/maphtml/default_english.html (896 bytes)
 resource/maphtml/necrohazard_team_banner.jpg (4441 bytes)
@@ -1111,6 +1089,7 @@ sound/cadeopreto/tk_steam.wav (25980 bytes)
 sound/call.wav (1174944 bytes)
 sound/callsound.wav (460000 bytes)
 sound/de_losttemple/lt_wind.wav (138438 bytes)
+sound/de_torn/torn_ambience.wav (43232 bytes)
 sound/debris/beamstart9.wav (22948 bytes)
 sound/debris/beamstart9.wav.ztmp (19971 bytes)
 sound/debris/bustglass1.wav (8512 bytes)
@@ -1120,7 +1099,6 @@ sound/items/gunpickup2.wav (14654 bytes)
 sound/items/nvg_on.wav (38836 bytes)
 sound/items/smallmedkit1.wav.ztmp (9570 bytes)
 sound/items/tr_kevlar.wav (18282 bytes)
-sound/materials.txt (11851 bytes)
 sound/necro/1.wav (20364 bytes)
 sound/necro/10.wav (22128 bytes)
 sound/necro/2.wav (14412 bytes)
@@ -1160,7 +1138,6 @@ sound/rpd/Outside.wav (505130 bytes)
 sound/rpd/RE3HallRPDMusic.wav (786432 bytes)
 sound/rpd/SaveRoomMusic.wav (610394 bytes)
 sound/rpd/thn.wav (388294 bytes)
-sound/sentences.txt (21860 bytes)
 sound/ses.wav (1546064 bytes)
 sound/siren.wav (62412 bytes)
 sound/vhe/ze_base/alarma_loop.wav (298764 bytes)
@@ -1420,7 +1397,6 @@ sprites/fexplo.spr (231810 bytes)
 sprites/flame.spr (263114 bytes)
 sprites/glow01.spr (4926 bytes)
 sprites/glow03.spr (4926 bytes)
-sprites/hud.txt (7218 bytes)
 sprites/laserbeam.spr (2878 bytes)
 sprites/lasermine_core_human.spr (4926 bytes)
 sprites/lasermine_core_human.spr.ztmp (2739 bytes)
@@ -1465,7 +1441,6 @@ sprites/necro_zombie_win_hud_640.spr.ztmp (9568 bytes)
 sprites/necro_zombie_win_hud_640_v3.spr (922598 bytes)
 sprites/necrohazard_inventory.spr (66986 bytes)
 sprites/necrohazard_inventory.spr.ztmp (2078 bytes)
-sprites/observer.txt (79 bytes)
 sprites/pistol_smoke1.spr (706182 bytes)
 sprites/pistol_smoke2.spr (706182 bytes)
 sprites/realistic_flashlight_hotspot.spr (4926 bytes)
@@ -1478,42 +1453,11 @@ sprites/wall_puff1.spr (755394 bytes)
 sprites/wall_puff2.spr (689778 bytes)
 sprites/wall_puff3.spr (689778 bytes)
 sprites/wall_puff4.spr (1179330 bytes)
-sprites/weapon_ak47.txt (359 bytes)
-sprites/weapon_aug.txt (207 bytes)
-sprites/weapon_awp.txt (516 bytes)
-sprites/weapon_c4.txt (203 bytes)
-sprites/weapon_deagle.txt (359 bytes)
-sprites/weapon_elite.txt (360 bytes)
-sprites/weapon_famas.txt (491 bytes)
-sprites/weapon_fiveseven.txt (366 bytes)
-sprites/weapon_flashbang.txt (360 bytes)
-sprites/weapon_g3sg1.txt (518 bytes)
-sprites/weapon_galil.txt (357 bytes)
-sprites/weapon_glock18.txt (356 bytes)
-sprites/weapon_hegrenade.txt (358 bytes)
-sprites/weapon_knife.txt (355 bytes)
-sprites/weapon_m249.txt (353 bytes)
-sprites/weapon_m3.txt (356 bytes)
-sprites/weapon_m4a1.txt (354 bytes)
-sprites/weapon_mac10.txt (358 bytes)
-sprites/weapon_mp5navy.txt (358 bytes)
 sprites/weapon_necro_human_win_hud.txt (192 bytes)
 sprites/weapon_necro_zombie_win_hud.txt (196 bytes)
 sprites/weapon_necro_zombie_win_hud.txt.ztmp (109 bytes)
 sprites/weapon_necro_zombie_win_hud_v2.txt (196 bytes)
 sprites/weapon_necro_zombie_win_hud_v2.txt.ztmp (119 bytes)
 sprites/weapon_necro_zombie_win_hud_v3.txt (208 bytes)
-sprites/weapon_p228.txt (361 bytes)
-sprites/weapon_p90.txt (362 bytes)
-sprites/weapon_scout.txt (513 bytes)
-sprites/weapon_sg550.txt (520 bytes)
-sprites/weapon_sg552.txt (206 bytes)
-sprites/weapon_shield.txt (356 bytes)
-sprites/weapon_shieldgun.txt (366 bytes)
-sprites/weapon_smokegrenade.txt (362 bytes)
-sprites/weapon_tmp.txt (353 bytes)
-sprites/weapon_ump45.txt (360 bytes)
-sprites/weapon_usp.txt (354 bytes)
-sprites/weapon_xm1014.txt (512 bytes)
 sprites/ze_blackChristmas_FG/teleport.spr (161310 bytes)
 sprites/zp_mutated_city/light.spr (66366 bytes)

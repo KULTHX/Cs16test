@@ -80,6 +80,37 @@ def copy_asset(src, rel, destination):
     shutil.copy2(src, target)
     return target.stat().st_size
 
+def record_audio_reference(raw, cstrike, fastdl, copied, audio_refs, missing_audio):
+    raw = str(raw).replace("\\", "/").strip().lstrip("./")
+    if raw.lower().startswith("sound/"):
+        raw = raw[6:]
+    path = Path(raw)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        return
+    if path.suffix.lower() not in {".wav", ".mp3", ".ogg"}:
+        return
+
+    rel = path.as_posix()
+    audio_refs.add(rel)
+    sound_root = (cstrike / "sound").resolve()
+    try:
+        resolved = sound_root.joinpath(*path.parts).resolve(strict=True)
+        resolved.relative_to(sound_root)
+    except (FileNotFoundError, OSError, RuntimeError, ValueError):
+        valve_file = cstrike.parent / "valve" / "sound" / Path(*path.parts)
+        if not valve_file.is_file():
+            missing_audio.add(rel)
+        return
+
+    if not resolved.is_file():
+        missing_audio.add(rel)
+        return
+
+    copied["sound/" + rel] = (
+        sha256(resolved),
+        copy_asset(resolved, "sound/" + rel, fastdl)
+    )
+
 def publish(cstrike, baseline_path, fastdl, report):
     if not cstrike.is_dir():
         fail(f"missing cstrike directory: {cstrike}")
@@ -101,22 +132,7 @@ def publish(cstrike, baseline_path, fastdl, report):
         except OSError:
             continue
         for raw in REF_RE.findall(body):
-            raw = raw.replace("\\", "/").lstrip("./")
-            if Path(raw).suffix.lower() not in {".wav", ".mp3", ".ogg"}:
-                continue
-            rel = raw[6:] if raw.lower().startswith("sound/") else raw
-            audio_refs.add(rel)
-            client_file = cstrike / "sound" / rel
-            if not client_file.is_file():
-                valve_file = cstrike.parent / "valve" / "sound" / rel
-                if valve_file.is_file():
-                    continue
-                missing_audio.add(rel)
-                continue
-            copied["sound/" + rel] = (
-                sha256(client_file.resolve()),
-                copy_asset(client_file.resolve(), "sound/" + rel, fastdl)
-            )
+            record_audio_reference(raw, cstrike, fastdl, copied, audio_refs, missing_audio)
 
     # Compiled AMXX bytecode preserves literal paths passed to precache_sound/emit_sound.
     plugin_dir = cstrike / "addons" / "amxmodx" / "plugins"
@@ -129,21 +145,25 @@ def publish(cstrike, baseline_path, fastdl, report):
             except OSError:
                 continue
             for match in BINARY_AUDIO_RE.findall(raw_plugin):
-                raw = match.decode("ascii", errors="ignore").replace("\\", "/").lstrip("./")
-                rel = raw[6:] if raw.lower().startswith("sound/") else raw
-                if not rel:
-                    continue
-                audio_refs.add(rel)
-                client_file = cstrike / "sound" / rel
-                if not client_file.is_file():
-                    valve_file = cstrike.parent / "valve" / "sound" / rel
-                    if not valve_file.is_file():
-                        missing_audio.add(rel)
-                    continue
-                copied["sound/" + rel] = (
-                    sha256(client_file.resolve()),
-                    copy_asset(client_file.resolve(), "sound/" + rel, fastdl)
-                )
+                raw = match.decode("ascii", errors="ignore")
+                record_audio_reference(raw, cstrike, fastdl, copied, audio_refs, missing_audio)
+
+    # GoldSrc BSP entity lumps can embed ambient sound paths. Scan changed
+    # custom maps so map-owned resources are exported even if AMXX/.res omit them.
+    for rel, bsp in current:
+        if not (rel.lower().startswith("maps/") and rel.lower().endswith(".bsp")):
+            continue
+        if baseline.get(rel) == sha256(bsp):
+            continue
+        try:
+            if bsp.stat().st_size > 256_000_000:
+                continue
+            raw_bsp = bsp.read_bytes()
+        except OSError:
+            continue
+        for match in BINARY_AUDIO_RE.findall(raw_bsp):
+            record_audio_reference(match.decode("ascii", errors="ignore"),
+                                   cstrike, fastdl, copied, audio_refs, missing_audio)
 
     new_maps = sorted(
         Path(rel).stem for rel, src in current
@@ -153,6 +173,18 @@ def publish(cstrike, baseline_path, fastdl, report):
     )
     if new_maps:
         (cstrike / "mapcycle.txt").write_text("\n".join(new_maps) + "\n", encoding="utf-8")
+        # Provide a lightweight map description if the custom map package omitted it.
+        for map_name in new_maps:
+            map_txt = cstrike / "maps" / (map_name + ".txt")
+            if not map_txt.exists():
+                map_txt.write_text(
+                    f"NECROHAZARD Zombie Plague\\n{map_name}\\n",
+                    encoding="utf-8"
+                )
+            copied["maps/" + map_name + ".txt"] = (
+                sha256(map_txt),
+                copy_asset(map_txt, "maps/" + map_name + ".txt", fastdl)
+            )
 
     plugins_file = cstrike / "addons/amxmodx/configs/plugins.ini"
     active_plugins = []
@@ -171,7 +203,7 @@ def publish(cstrike, baseline_path, fastdl, report):
         "",
         "MAP ROTATION:", *(new_maps or ["No new custom BSP maps were found in the mod bundle."]),
         "",
-        "AUDIO REFERENCES FOUND IN AMXX SOURCE/CONFIG:", *(sorted(audio_refs) or ["No explicit sound paths were found."]),
+        "AUDIO REFERENCES FOUND IN MOD SOURCE, PLUGINS, AND BSP MAPS:", *(sorted(audio_refs) or ["No explicit sound paths were found."]),
         "",
         "AUDIO FILES MISSING FROM CSTRIKE AND VALVE SOUND:", *(sorted(missing_audio) or ["None."]),
         "",

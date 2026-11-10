@@ -108,6 +108,9 @@ jobs:
           REUNION_VERSION: 0.2.0.25
         run: bash scripts/install-reunion.sh "$RUNNER_TEMP/hlds"
 
+      - name: Install official ReGameDLL_CS GameDLL
+        run: bash scripts/install-regamedll.sh "$RUNNER_TEMP/hlds"
+
       - name: Inspect Metamod and ReUnion installation
         run: |
           echo "=== liblist.gam loader directives ==="
@@ -138,6 +141,8 @@ jobs:
           LOG_FILE="$RUNNER_TEMP/rehlds-smoke.log"
           export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
           set +e
+          # This server.cfg is created only in the disposable CI smoke-test runner.
+          printf 'game version\\namxx plugins\\n' > "$RUNNER_TEMP/hlds/cstrike/server.cfg"
           timeout --signal=TERM --kill-after=5s 45s \
             ./hlds_run -norestart -game cstrike -console -ip 127.0.0.1 -port 27015 \
             +maxplayers "$MAXPLAYERS" +map de_dust2 +log on +mp_logecho 1 +version +sv_lan 1 \
@@ -167,13 +172,19 @@ jobs:
           grep -Eiq 'Server logging data to file' "$LOG_FILE" \
             || { echo "ERROR: The game server did not initialize server logging." >&2; exit 1; }
           grep -Eiq 'World triggered "Round_Start"' "$LOG_FILE" \
-          if ! grep -Eiq "\\[META\\] dll: Loaded plugin .Reunion." "$LOG_FILE"; then
-            echo "ERROR: Metamod-R did not load the ReUnion plugin." >&2
+            || { echo "ERROR: The game did not reach the first round." >&2; exit 1; }
+          grep -Eiq "\\[META\\] dll: Loaded plugin .Reunion." "$LOG_FILE" \
+            || { echo "ERROR: Metamod-R did not load the ReUnion plugin." >&2; exit 1; }
+          grep -Eiq '5\\.30\\.0\\.814' "$LOG_FILE" \
+            || { echo "ERROR: ReGameDLL_CS 5.30.0.814 did not report its loaded version." >&2; exit 1; }
+          if grep -Eiq 'RegisterHookChain: function .*ReGameDLL required|Run time error 10 .*plugin "(necro_map_vote|frex_round_end_control)\\.amxx"' "$LOG_FILE"; then
+            echo "ERROR: Zombie map voting / round control still reports missing ReGameDLL hooks." >&2
             exit 1
           fi
-            || { echo "ERROR: ReUnion did not appear as RUN in the post-map meta list output." >&2; exit 1; }
+          grep -Fq 'necro_map_vote.amxx' "$LOG_FILE" \
+            || { echo "ERROR: NECROHAZARD map-vote plugin was not listed by AMX Mod X." >&2; exit 1; }
 
-          echo "ReHLDS, Metamod-R, and ReUnion verified; the GoldSrc server loaded the map and reached Round_Start."
+          echo "ReHLDS, Metamod-R, ReUnion, and ReGameDLL_CS verified; Zombie Plague map-vote / round-control plugins passed startup."
 
       - name: Upload smoke-test log
         if: always()

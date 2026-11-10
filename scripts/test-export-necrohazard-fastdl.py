@@ -27,7 +27,13 @@ with tempfile.TemporaryDirectory(prefix="fastdl-test-") as temp:
     (cstrike / "sound" / "vox" / "one.wav").write_bytes(b"stock-sound")
     module.snapshot(cstrike, manifest)
 
-    (cstrike / "maps" / "zm_survival.bsp").write_bytes(b"custom-map")
+    (cstrike / "maps" / "zm_survival.bsp").write_bytes(
+        b"custom-map\\x00sound/gamepack/levels/westwood/tone_alley.wav\\x00"
+    )
+    (cstrike / "sound" / "gamepack" / "levels" / "westwood").mkdir(parents=True)
+    (cstrike / "sound" / "gamepack" / "levels" / "westwood" / "tone_alley.wav").write_bytes(
+        b"map-ambient-tone"
+    )
     (cstrike / "sound" / "necro").mkdir(parents=True)
     (cstrike / "sound" / "necro" / "count9.wav").write_bytes(b"countdown-sound")
     (cstrike / "models").mkdir()
@@ -39,11 +45,17 @@ with tempfile.TemporaryDirectory(prefix="fastdl-test-") as temp:
 
     module.publish(cstrike, manifest, fastdl, report)
 
-    assert (fastdl / "maps" / "zm_survival.bsp").read_bytes() == b"custom-map"
+    assert b"sound/gamepack/levels/westwood/tone_alley.wav" in (cstrike / "maps" / "zm_survival.bsp").read_bytes()
+    assert (fastdl / "maps" / "zm_survival.bsp").exists()
+    assert (fastdl / "maps" / "zm_survival.txt").exists()
+    assert (
+        fastdl / "sound" / "gamepack" / "levels" / "westwood" / "tone_alley.wav"
+    ).read_bytes() == b"map-ambient-tone"
     assert (fastdl / "sound" / "necro" / "count9.wav").read_bytes() == b"countdown-sound"
     assert (fastdl / "models" / "zp_test.mdl").read_bytes() == b"custom-model"
     assert (cstrike / "mapcycle.txt").read_text(encoding="utf-8").strip() == "zm_survival"
     text = report.read_text(encoding="utf-8")
     assert "necro/count9.wav" in text
+    assert "gamepack/levels/westwood/tone_alley.wav" in text
     assert "New custom BSP maps: 1" in text
 print("FastDL exporter smoke test passed: custom map, model, and countdown sound were exported.")

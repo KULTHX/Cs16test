@@ -26,6 +26,7 @@ jobs:
           bash -n scripts/install-base-hlds.sh
           bash -n scripts/install-rehlds.sh
           bash -n scripts/install-reunion.sh
+          bash -n scripts/install-regamedll.sh
           bash -n scripts/run-public-session.sh
 
       - name: Test Zombie Plague FastDL export and map rotation

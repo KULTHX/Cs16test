@@ -138,7 +138,7 @@ start_server() {
     ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
     +maxplayers "$MAXPLAYERS" +map "$start_map" +mapcyclefile mapcycle.txt +log on +mp_logecho 1 \
     +hostname "CS 1.6 Public Test Server" +sv_lan 0 +sv_allowdownload 1 \
-    +sv_downloadurl "http://raw.githubusercontent.com/KULTHX/Cs16test/main/dashboard/fastdl/cstrike/" +meta list \
+    +sv_downloadurl "http://raw.githack.com/KULTHX/Cs16test/main/dashboard/fastdl/cstrike/" +meta list \
     >> "$LOG_FILE" 2>&1 &
   SERVER_PID=$!
 

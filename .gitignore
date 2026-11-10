@@ -2,6 +2,9 @@
 steamcmd/
 hlds/
 cstrike/
+!dashboard/fastdl/
+!dashboard/fastdl/cstrike/
+!dashboard/fastdl/cstrike/**
 valve/
 platform/
 

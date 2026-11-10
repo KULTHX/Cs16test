@@ -5,6 +5,12 @@
 
 hostname "CS 1.6 Public Test Server"
 sv_lan 0
+public 1
+
+// FastDL is served by the same Vercel project without changing the dashboard APIs.
+sv_downloadurl "https://cs16-community-status.vercel.app/fastdl/cstrike/"
+sv_allowdownload 1
+sv_allowupload 0
 
 // Basic server behavior.
 mp_timelimit 25

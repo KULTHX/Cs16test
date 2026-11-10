@@ -122,3 +122,10 @@ grep -Eq '^[[:space:]]*cid_NoSteam48[[:space:]]*=[[:space:]]*3([[:space:]]|$)' "
 echo "[5/5] Installed Metamod-R ${METAMOD_VERSION} and ReUnion ${REUNION_VERSION}."
 echo "At server startup, check the console with: meta list"
 echo "Expected: Reunion should appear with status RUN."
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+MOD_BUNDLE_URL="https://github.com/KULTHX/Cs16test/releases/download/necrohazard-zp-20261110/necrohazard_mod_bundle_20261110T033000Z.tar.zst"
+MOD_BUNDLE_SHA256_URL="https://github.com/KULTHX/Cs16test/releases/download/necrohazard-zp-20261110/necrohazard_mod_bundle_20261110T033000Z.tar.zst.sha256"
+
+echo "[6/6] Installing the NECROHAZARD Zombie Plague bundle..."
+bash "$SCRIPT_DIR/install-necrohazard-bundle.sh" "$HLDS_DIR" "$MOD_BUNDLE_URL" "$MOD_BUNDLE_SHA256_URL"

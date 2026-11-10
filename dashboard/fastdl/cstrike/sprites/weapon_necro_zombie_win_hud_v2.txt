@@ -1,0 +1,5 @@
+4
+crosshair 320 necro_zombie_win_hud_320 0 0 128 160
+zoom 320 necro_zombie_win_hud_320 0 0 128 160
+crosshair 640 necro_zombie_win_hud_640 0 0 256 320
+zoom 640 necro_zombie_win_hud_640 0 0 256 320

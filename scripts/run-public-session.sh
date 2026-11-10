@@ -11,9 +11,15 @@ MAXPLAYERS="$2"
 LOG_FILE="$3"
 PLAYIT_LOG_FILE="$RUNNER_TEMP/playit-agent.log"
 BORE_LOG_FILE="$RUNNER_TEMP/bore.log"
+FASTDL_LOG_FILE="$RUNNER_TEMP/fastdl.log"
+FASTDL_BORE_LOG_FILE="$RUNNER_TEMP/fastdl-bore.log"
 SSH_CONFIG="$RUNNER_TEMP/sshd_config"
 SSH_PID_FILE="$RUNNER_TEMP/sshd.pid"
 SSH_PID=""
+FASTDL_PID=""
+FASTDL_BORE_LOG_PID=""
+FASTDL_ADDRESS=""
+FASTDL_PORT=""
 
 if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
   echo "PLAYIT_SECRET_KEY is required." >&2
@@ -68,6 +74,8 @@ export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LI
 : > "$LOG_FILE"
 : > "$PLAYIT_LOG_FILE"
 : > "$BORE_LOG_FILE"
+: > "$FASTDL_LOG_FILE"
+: > "$FASTDL_BORE_LOG_FILE"
 
 # Keep one runner for a bounded session. The watchdog revives child processes
 # but never chains workflows or attempts to exceed GitHub's job limit.
@@ -109,13 +117,32 @@ stop_bore() {
   BORE_PORT=""
 }
 
+stop_fastdl() {
+  if [[ -n "$FASTDL_BORE_LOG_PID" ]] && kill -0 "$FASTDL_BORE_LOG_PID" 2>/dev/null; then
+    kill "$FASTDL_BORE_LOG_PID" 2>/dev/null || true
+    wait "$FASTDL_BORE_LOG_PID" 2>/dev/null || true
+  fi
+  FASTDL_BORE_LOG_PID=""
+  docker stop bore-fastdl >/dev/null 2>&1 || true
+  docker rm -f bore-fastdl >/dev/null 2>&1 || true
+  if [[ -n "$FASTDL_PID" ]] && kill -0 "$FASTDL_PID" 2>/dev/null; then
+    kill "$FASTDL_PID" 2>/dev/null || true
+    wait "$FASTDL_PID" 2>/dev/null || true
+  fi
+  FASTDL_PID=""
+  FASTDL_ADDRESS=""
+  FASTDL_PORT=""
+}
+
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
+  stop_fastdl
   stop_bore
   stop_ssh
   stop_server
   docker logs --tail 200 playit > "$PLAYIT_LOG_FILE" 2>&1 || true
+  docker logs --tail 200 bore-fastdl > "$FASTDL_BORE_LOG_FILE" 2>&1 || true
   docker stop playit >/dev/null 2>&1 || true
   docker rm -f playit >/dev/null 2>&1 || true
   exit "$status"
@@ -133,12 +160,16 @@ start_server() {
   line_start=$(( $(wc -l < "$LOG_FILE") + 1 ))
   local start_map
   start_map="westwood_ds_v16"
+  if [[ -z "$FASTDL_PORT" ]]; then
+    echo "ERROR: FastDL HTTP tunnel is not ready; refusing to start ReHLDS." >&2
+    return 1
+  fi
   echo "Starting ReHLDS on 127.0.0.1:27015 with $MAXPLAYERS slots on $start_map; $remaining seconds remain."
   setsid timeout --signal=TERM --kill-after=30s "${remaining}s" \
     ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
     +maxplayers "$MAXPLAYERS" +map "$start_map" +mapcyclefile mapcycle.txt +log on +mp_logecho 1 \
     +hostname "CS 1.6 Public Test Server" +sv_lan 0 +sv_allowdownload 1 \
-    +sv_downloadurl "http://raw.githack.com/KULTHX/Cs16test/main/dashboard/fastdl/cstrike/" +meta list \
+    +sv_downloadurl "http://$FASTDL_ADDRESS/cstrike/" +meta list \
     >> "$LOG_FILE" 2>&1 &
   SERVER_PID=$!
 
@@ -173,6 +204,72 @@ start_server() {
   echo "ReHLDS did not become ready within 180 seconds."
   tail -n 100 "$LOG_FILE" || true
   stop_server
+  return 1
+}
+
+start_fastdl() {
+  local attempt running address
+  stop_fastdl
+  printf '\n[%s] Starting HTTP FastDL origin and Bore TCP tunnel...\n' "$(date -u +%FT%TZ)" >> "$FASTDL_LOG_FILE"
+  python3 -m http.server 8080 --bind 127.0.0.1 --directory "$HLDS_DIR" >> "$FASTDL_LOG_FILE" 2>&1 &
+  FASTDL_PID=$!
+  for attempt in $(seq 1 15); do
+    if ! kill -0 "$FASTDL_PID" 2>/dev/null; then
+      echo "FastDL HTTP origin exited during startup." | tee -a "$FASTDL_LOG_FILE"
+      return 1
+    fi
+    if curl --fail --silent --show-error --max-time 3 \
+      "http://127.0.0.1:8080/cstrike/maps/$WESTWOOD_MAP.bsp" -o /dev/null; then
+      break
+    fi
+    sleep 2
+  done
+  if ! curl --fail --silent --show-error --max-time 3 \
+    "http://127.0.0.1:8080/cstrike/maps/$WESTWOOD_MAP.bsp" -o /dev/null; then
+    echo "FastDL HTTP origin did not serve a real BSP file." | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+  if ! timeout 120s docker run -d --rm --name bore-fastdl --network host \
+      ekzhang/bore:0.6.0 local 8080 --local-host 127.0.0.1 --to bore.pub \
+      >> "$FASTDL_BORE_LOG_FILE" 2>&1; then
+    echo "FastDL Bore tunnel could not start." | tee -a "$FASTDL_BORE_LOG_FILE"
+    return 1
+  fi
+  docker logs -f bore-fastdl >> "$FASTDL_BORE_LOG_FILE" 2>&1 &
+  FASTDL_BORE_LOG_PID=$!
+  for attempt in $(seq 1 30); do
+    running="$(docker inspect -f '{{.State.Running}}' bore-fastdl 2>/dev/null || true)"
+    if [[ "$running" != "true" ]]; then
+      echo "FastDL Bore tunnel exited before publishing an address." | tee -a "$FASTDL_BORE_LOG_FILE"
+      return 1
+    fi
+    address="$(grep -Eo 'bore\.pub:[0-9]+' "$FASTDL_BORE_LOG_FILE" | tail -n 1 || true)"
+    if [[ "$address" =~ ^bore\.pub:([0-9]+)$ ]]; then
+      FASTDL_ADDRESS="$address"
+      FASTDL_PORT="${BASH_REMATCH[1]}"
+      if curl --fail --silent --show-error --max-time 10 \
+        "http://$FASTDL_ADDRESS/cstrike/maps/$WESTWOOD_MAP.bsp" -o /dev/null; then
+        echo "FastDL HTTP endpoint ready: http://$FASTDL_ADDRESS/cstrike/"
+        return 0
+      fi
+      echo "FastDL endpoint was published but a real BSP download failed." >> "$FASTDL_LOG_FILE"
+      return 1
+    fi
+    sleep 2
+  done
+  echo "FastDL Bore tunnel did not publish an address within 60 seconds." | tee -a "$FASTDL_BORE_LOG_FILE"
+  return 1
+}
+
+start_fastdl_with_retry() {
+  while (( SECONDS + 240 < DEADLINE )); do
+    if start_fastdl; then
+      return 0
+    fi
+    echo "Watchdog: FastDL startup failed; retrying in $RESTART_DELAY seconds."
+    stop_fastdl
+    sleep "$RESTART_DELAY"
+  done
   return 1
 }
 
@@ -344,6 +441,7 @@ start_bore() {
   return 1
 }
 
+start_fastdl_with_retry
 start_server_with_retry
 start_playit_with_retry
 BORE_RETRY_AT=0
@@ -362,6 +460,14 @@ fi
 
 echo "Self-healing session active. The watchdog checks ReHLDS, Playit, SSH, and Bore every 10 seconds."
 while (( SECONDS < DEADLINE )); do
+  fastdl_running="$(docker inspect -f '{{.State.Running}}' bore-fastdl 2>/dev/null || true)"
+  if [[ "$fastdl_running" != "true" ]] || [[ -z "$FASTDL_PID" ]] || ! kill -0 "$FASTDL_PID" 2>/dev/null; then
+    echo "Watchdog: FastDL HTTP origin or tunnel stopped; restarting ReHLDS and FastDL."
+    stop_server
+    start_fastdl_with_retry
+    start_server_with_retry
+  fi
+
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
     set +e
     wait "$SERVER_PID"

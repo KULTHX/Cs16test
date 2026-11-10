@@ -167,19 +167,6 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Configure server for public session
-        run: |
-          set -euo pipefail
-          sed -E 's/^sv_lan[[:space:]]+1$/sv_lan 0/' \
-            config/server.cfg.example > "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-          # Check the public setting and queue the plugin status command after map load.
-          grep -Eq '^[[:space:]]*sv_lan[[:space:]]+0([[:space:]]|$)' "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-          printf '\nmeta list\n' >> "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-          RCON_PASSWORD="$(openssl rand -hex 24)"
-          printf '\nrcon_password "%s"\n' "$RCON_PASSWORD" >> "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-          unset RCON_PASSWORD
-          chmod 0600 "$RUNNER_TEMP/hlds/cstrike/server.cfg"
-
       - name: Run self-healing ReHLDS, Playit, and SSH session
         env:
           PLAYIT_SECRET_KEY: ${{ secrets.PLAYIT_SECRET_KEY }}

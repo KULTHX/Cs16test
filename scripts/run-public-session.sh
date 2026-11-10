@@ -42,6 +42,28 @@ esac
 cd "$HLDS_DIR"
 # Intentionally remove the generated/base server.cfg so it cannot override Zombie Plague settings.
 rm -f "$HLDS_DIR/cstrike/server.cfg"
+
+# Start on the requested Westwood map and enable a stable YaPB population.
+WESTWOOD_MAP="westwood_ds_v16"
+[[ -s "$HLDS_DIR/cstrike/maps/$WESTWOOD_MAP.bsp" ]] || {
+  echo "ERROR: Requested Westwood map is missing: cstrike/maps/$WESTWOOD_MAP.bsp" >&2
+  exit 1
+}
+YAPB_CONFIG="$HLDS_DIR/cstrike/addons/yapb/conf/yapb.cfg"
+[[ -s "$YAPB_CONFIG" ]] || {
+  echo "ERROR: YaPB config is missing: $YAPB_CONFIG" >&2
+  exit 1
+}
+for setting in 'yb_quota "10"' 'yb_quota_mode "fill"' 'yb_autovacate "1"' 'yb_join_after_player "0"'; do
+  key="${setting%% *}"
+  if grep -Eq "^[[:space:]]*${key}[[:space:]]+" "$YAPB_CONFIG"; then
+    sed -i -E "s/^[[:space:]]*${key}[[:space:]]+.*/${setting}/" "$YAPB_CONFIG"
+  else
+    printf '%s\\n' "$setting" >> "$YAPB_CONFIG"
+  fi
+done
+echo "YaPB enabled: 10 bots total, fill mode, Westwood map: $WESTWOOD_MAP"
+
 export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
 : > "$LOG_FILE"
 : > "$PLAYIT_LOG_FILE"
@@ -109,18 +131,8 @@ start_server() {
   fi
 
   line_start=$(( $(wc -l < "$LOG_FILE") + 1 ))
-  local start_map candidate
-  start_map="de_dust2"
-  if [[ -f "$HLDS_DIR/cstrike/mapcycle.txt" ]]; then
-    while IFS= read -r candidate; do
-      candidate="${candidate%%#*}"
-      candidate="${candidate//[[:space:]]/}"
-      if [[ "$candidate" =~ ^[A-Za-z0-9_]+$ && -f "$HLDS_DIR/cstrike/maps/$candidate.bsp" ]]; then
-        start_map="$candidate"
-        break
-      fi
-    done < "$HLDS_DIR/cstrike/mapcycle.txt"
-  fi
+  local start_map
+  start_map="westwood_ds_v16"
   echo "Starting ReHLDS on 127.0.0.1:27015 with $MAXPLAYERS slots on $start_map; $remaining seconds remain."
   setsid timeout --signal=TERM --kill-after=30s "${remaining}s" \
     ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \

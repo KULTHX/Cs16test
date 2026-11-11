@@ -50,7 +50,7 @@ cd "$HLDS_DIR"
 # Intentionally remove the generated/base server.cfg so it cannot override Zombie Plague settings.
 rm -f "$HLDS_DIR/cstrike/server.cfg"
 
-# Start on the requested Westwood map and enable a stable YaPB population.
+# One-bot map test: start directly on zm_laura and keep player slots available.
 WESTWOOD_MAP="zm_laura"
 [[ -s "$HLDS_DIR/cstrike/maps/$WESTWOOD_MAP.bsp" ]] || {
   echo "ERROR: Requested Westwood map is missing: cstrike/maps/$WESTWOOD_MAP.bsp" >&2

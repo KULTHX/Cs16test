@@ -7,7 +7,8 @@ const EXPECTED_HASH = "ee8f16116c1601007154afd4fb37d3fe139288b8175b8923a0e4145a7
 const ACTIVE = new Set(["queued", "in_progress", "waiting", "requested", "pending"]);
 
 function authorized(request) {
-  const supplied = new URL(request.url, "https://localhost").searchParams.get("key") || "";
+  const encoded = new URL(request.url, "https://localhost").searchParams.get("key") || "";
+  const supplied = Buffer.from(encoded, "base64url").toString("utf8");
   const actual = createHash("sha256").update(supplied).digest();
   const expected = Buffer.from(EXPECTED_HASH, "hex");
   return actual.length === expected.length && timingSafeEqual(actual, expected);

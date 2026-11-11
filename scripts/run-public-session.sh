@@ -51,7 +51,7 @@ cd "$HLDS_DIR"
 rm -f "$HLDS_DIR/cstrike/server.cfg"
 
 # Start on the requested Westwood map and enable a stable YaPB population.
-WESTWOOD_MAP="westwood_ds_v16"
+WESTWOOD_MAP="zm_laura"
 [[ -s "$HLDS_DIR/cstrike/maps/$WESTWOOD_MAP.bsp" ]] || {
   echo "ERROR: Requested Westwood map is missing: cstrike/maps/$WESTWOOD_MAP.bsp" >&2
   exit 1
@@ -69,7 +69,7 @@ for setting in 'yb_quota "1"' 'yb_quota_mode "fill"' 'yb_autovacate "1"' 'yb_joi
     printf '%s\\n' "$setting" >> "$YAPB_CONFIG"
   fi
 done
-echo "YaPB enabled: 10 bots total, fill mode, Westwood map: $WESTWOOD_MAP"
+echo "YaPB enabled: 1 bot total, fill mode, test map: $WESTWOOD_MAP"
 
 export LD_LIBRARY_PATH="$HOME/.steam/sdk32:$RUNNER_TEMP/steamcmd/linux32:${LD_LIBRARY_PATH:-}"
 : > "$LOG_FILE"
@@ -160,7 +160,7 @@ start_server() {
 
   line_start=$(( $(wc -l < "$LOG_FILE") + 1 ))
   local start_map
-  start_map="westwood_ds_v16"
+  start_map="zm_laura"
   if [[ -z "$FASTDL_PORT" ]]; then
     echo "ERROR: FastDL HTTP tunnel is not ready; refusing to start ReHLDS." >&2
     return 1

@@ -13,6 +13,7 @@ PLAYIT_LOG_FILE="$RUNNER_TEMP/playit-agent.log"
 BORE_LOG_FILE="$RUNNER_TEMP/bore.log"
 FASTDL_LOG_FILE="$RUNNER_TEMP/fastdl.log"
 FASTDL_BORE_LOG_FILE="$RUNNER_TEMP/fastdl-bore.log"
+FASTDL_CACHE_DIR="$RUNNER_TEMP/fastdl-bz2-cache"
 SSH_CONFIG="$RUNNER_TEMP/sshd_config"
 SSH_PID_FILE="$RUNNER_TEMP/sshd.pid"
 SSH_PID=""
@@ -211,7 +212,11 @@ start_fastdl() {
   local attempt running address
   stop_fastdl
   printf '\n[%s] Starting HTTP FastDL origin and Bore TCP tunnel...\n' "$(date -u +%FT%TZ)" >> "$FASTDL_LOG_FILE"
-  python3 -m http.server 8080 --bind 127.0.0.1 --directory "$HLDS_DIR" >> "$FASTDL_LOG_FILE" 2>&1 &
+  rm -rf "$FASTDL_CACHE_DIR"
+  mkdir -p "$FASTDL_CACHE_DIR"
+  python3 "$GITHUB_WORKSPACE/scripts/fastdl_http.py" \
+    --bind 127.0.0.1 --port 8080 --root "$HLDS_DIR" --cache "$FASTDL_CACHE_DIR" \
+    >> "$FASTDL_LOG_FILE" 2>&1 &
   FASTDL_PID=$!
   for attempt in $(seq 1 15); do
     if ! kill -0 "$FASTDL_PID" 2>/dev/null; then
@@ -227,6 +232,16 @@ start_fastdl() {
   if ! curl --fail --silent --show-error --max-time 3 \
     "http://127.0.0.1:8080/cstrike/maps/$WESTWOOD_MAP.bsp" -o /dev/null; then
     echo "FastDL HTTP origin did not serve a real BSP file." | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+  if ! curl --fail --silent --show-error --max-time 15 \
+    "http://127.0.0.1:8080/cstrike/maps/$WESTWOOD_MAP.bsp.bz2" \
+    -o "$RUNNER_TEMP/fastdl-bsp.bz2"; then
+    echo "FastDL HTTP origin did not serve a compressed BSP representation." | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+  if [[ "$(head -c 3 "$RUNNER_TEMP/fastdl-bsp.bz2")" != "BZh" ]]; then
+    echo "FastDL compressed BSP response is not a valid bzip2 stream." | tee -a "$FASTDL_LOG_FILE"
     return 1
   fi
   if ! timeout 120s docker run -d --rm --name bore-fastdl --network host \
@@ -249,7 +264,12 @@ start_fastdl() {
       FASTDL_PORT="${BASH_REMATCH[1]}"
       if curl --fail --silent --show-error --max-time 10 \
         "http://$FASTDL_ADDRESS/cstrike/maps/$WESTWOOD_MAP.bsp" -o /dev/null; then
-        echo "FastDL HTTP endpoint ready: http://$FASTDL_ADDRESS/cstrike/"
+        if ! curl --fail --silent --show-error --max-time 30 \
+          "http://$FASTDL_ADDRESS/cstrike/maps/$WESTWOOD_MAP.bsp.bz2" -o /dev/null; then
+          echo "FastDL public endpoint cannot serve compressed BSP files." >> "$FASTDL_LOG_FILE"
+          return 1
+        fi
+        echo "FastDL HTTP endpoint ready with bz2 support: http://$FASTDL_ADDRESS/cstrike/"
         return 0
       fi
       echo "FastDL endpoint was published but a real BSP download failed." >> "$FASTDL_LOG_FILE"

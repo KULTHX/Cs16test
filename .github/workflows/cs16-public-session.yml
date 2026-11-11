@@ -24,8 +24,8 @@ permissions:
 
 concurrency:
   group: cs16-public-session
-  # Keep the currently running public game server alive when a new commit is pushed.
-  cancel-in-progress: false
+  # A new verified session replaces an older broken session instead of waiting behind it.
+  cancel-in-progress: true
 
 jobs:
   public-session:
@@ -205,5 +205,8 @@ jobs:
             ${{ runner.temp }}/rehlds-session.log
             ${{ runner.temp }}/playit-agent.log
             ${{ runner.temp }}/bore.log
+            ${{ runner.temp }}/fastdl.log
+            ${{ runner.temp }}/fastdl-bore.log
+            ${{ runner.temp }}/fastdl-url.txt
           if-no-files-found: ignore
           retention-days: 3

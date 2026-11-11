@@ -21,6 +21,7 @@ FASTDL_PID=""
 FASTDL_BORE_LOG_PID=""
 FASTDL_ADDRESS=""
 FASTDL_PORT=""
+FASTDL_URL=""
 
 if [[ -z "${PLAYIT_SECRET_KEY:-}" ]]; then
   echo "PLAYIT_SECRET_KEY is required." >&2
@@ -165,12 +166,18 @@ start_server() {
     echo "ERROR: FastDL HTTP tunnel is not ready; refusing to start ReHLDS." >&2
     return 1
   fi
+  if [[ -z "$FASTDL_URL" || "$FASTDL_URL" != http://* || ${#FASTDL_URL} -ge 129 ]]; then
+    echo "ERROR: FastDL URL is empty, not plain HTTP, or exceeds ReHLDS's 128-character limit." >&2
+    return 1
+  fi
+  echo "FastDL URL passed to ReHLDS: $FASTDL_URL" | tee -a "$LOG_FILE"
   echo "Starting ReHLDS on 127.0.0.1:27015 with $MAXPLAYERS slots on $start_map; $remaining seconds remain."
   setsid timeout --signal=TERM --kill-after=30s "${remaining}s" \
     ./hlds_run -game cstrike -console -ip 127.0.0.1 -port 27015 \
+    +sv_lan 0 +sv_allowdownload 1 +sv_downloadurl "$FASTDL_URL" \
     +maxplayers "$MAXPLAYERS" +map "$start_map" +mapcyclefile mapcycle.txt +log on +mp_logecho 1 \
     +hostname "CS 1.6 Public Test Server" +sv_lan 0 +sv_allowdownload 1 \
-    +sv_downloadurl "http://$FASTDL_ADDRESS/cstrike/" +meta list \
+    +sv_downloadurl "$FASTDL_URL" +meta list \
     >> "$LOG_FILE" 2>&1 &
   SERVER_PID=$!
 
@@ -206,6 +213,39 @@ start_server() {
   tail -n 100 "$LOG_FILE" || true
   stop_server
   return 1
+}
+
+verify_fastdl_file() {
+  local relative_path="$1"
+  local local_file="$HLDS_DIR/cstrike/$relative_path"
+  local downloaded_file="$RUNNER_TEMP/fastdl-verify-${relative_path//\//_}"
+  local http_code local_hash remote_hash
+
+  if [[ ! -s "$local_file" ]]; then
+    echo "FastDL verification source file is missing: $local_file" | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+
+  if ! http_code="$(curl --silent --show-error --proto '=http' --max-redirs 0 \
+      --max-time 45 --output "$downloaded_file" --write-out '%{http_code}' \
+      "$FASTDL_URL$relative_path")"; then
+    echo "FastDL external HTTP download failed: $FASTDL_URL$relative_path" | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+
+  if [[ "$http_code" != "200" ]]; then
+    echo "FastDL returned HTTP $http_code (expected 200): $FASTDL_URL$relative_path" | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+
+  local_hash="$(sha256sum "$local_file" | awk '{print $1}')"
+  remote_hash="$(sha256sum "$downloaded_file" | awk '{print $1}')"
+  if [[ "$local_hash" != "$remote_hash" ]]; then
+    echo "FastDL content mismatch for $relative_path (HTTP 200 but SHA-256 differs)." | tee -a "$FASTDL_LOG_FILE"
+    return 1
+  fi
+
+  echo "FastDL verified: HTTP $http_code, plain HTTP, SHA-256 match: $relative_path" | tee -a "$FASTDL_LOG_FILE"
 }
 
 start_fastdl() {
@@ -262,18 +302,21 @@ start_fastdl() {
     if [[ "$address" =~ ^bore\.pub:([0-9]+)$ ]]; then
       FASTDL_ADDRESS="$address"
       FASTDL_PORT="${BASH_REMATCH[1]}"
-      if curl --fail --silent --show-error --max-time 10 \
-        "http://$FASTDL_ADDRESS/cstrike/maps/$WESTWOOD_MAP.bsp" -o /dev/null; then
-        if ! curl --fail --silent --show-error --max-time 30 \
-          "http://$FASTDL_ADDRESS/cstrike/maps/$WESTWOOD_MAP.bsp.bz2" -o /dev/null; then
-          echo "FastDL public endpoint cannot serve compressed BSP files." >> "$FASTDL_LOG_FILE"
-          return 1
-        fi
-        echo "FastDL HTTP endpoint ready with bz2 support: http://$FASTDL_ADDRESS/cstrike/"
-        return 0
+      FASTDL_URL="http://$FASTDL_ADDRESS/cstrike/"
+      if [[ ${#FASTDL_URL} -ge 129 ]]; then
+        echo "FastDL URL exceeds ReHLDS's 128-character resource-location limit: $FASTDL_URL" | tee -a "$FASTDL_LOG_FILE"
+        return 1
       fi
-      echo "FastDL endpoint was published but a real BSP download failed." >> "$FASTDL_LOG_FILE"
-      return 1
+      printf '%s\n' "$FASTDL_URL" > "$RUNNER_TEMP/fastdl-url.txt"
+      echo "FastDL public HTTP endpoint announced for validation: $FASTDL_URL" | tee -a "$FASTDL_LOG_FILE"
+
+      verify_fastdl_file "maps/$WESTWOOD_MAP.bsp" || return 1
+      verify_fastdl_file "models/zombie_plague/v_grenade_fire.mdl" || return 1
+      verify_fastdl_file "sprites/flame.spr" || return 1
+      verify_fastdl_file "sound/necro_events_20261025/coming.wav" || return 1
+
+      echo "FastDL public endpoint passed BSP, MDL, SPR, and WAV HTTP 200 + SHA-256 checks: $FASTDL_URL" | tee -a "$FASTDL_LOG_FILE"
+      return 0
     fi
     sleep 2
   done

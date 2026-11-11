@@ -60,7 +60,7 @@ YAPB_CONFIG="$HLDS_DIR/cstrike/addons/yapb/conf/yapb.cfg"
   echo "ERROR: YaPB config is missing: $YAPB_CONFIG" >&2
   exit 1
 }
-for setting in 'yb_quota "10"' 'yb_quota_mode "fill"' 'yb_autovacate "1"' 'yb_join_after_player "0"'; do
+for setting in 'yb_quota "1"' 'yb_quota_mode "fill"' 'yb_autovacate "1"' 'yb_join_after_player "0"'; do
   key="${setting%% *}"
   if grep -Eq "^[[:space:]]*${key}[[:space:]]+" "$YAPB_CONFIG"; then
     sed -i -E "s/^[[:space:]]*${key}[[:space:]]+.*/${setting}/" "$YAPB_CONFIG"
